@@ -7,7 +7,7 @@
             double mean;
         public:
             Poisson(double mean);
-            int generate();
+            double generate();
     };
 #endif
  

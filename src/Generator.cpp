@@ -9,6 +9,6 @@ double Generator::generate_random_number(double low, double high){
         return (low+(static_cast<double>(random_value)/(static_cast<double>(RAND_MAX/(high-low)))));
     }
 
-int Generator:: generate(){
+double Generator:: generate(){
         return 0;
     }

@@ -5,6 +5,6 @@
         public:
             Generator();
             double generate_random_number(double low, double high);
-            int generate();
+            double generate();
     };
 #endif

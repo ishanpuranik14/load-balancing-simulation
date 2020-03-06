@@ -5,7 +5,7 @@ Poisson::Poisson(double mean):Generator(){
             this->mean = mean;
         }
 
-int Poisson::generate(){
+double Poisson::generate(){
             return -logf(1.0f - generate_random_number(0,1)) / (this->mean);
             // double L = exp(-(this->mean)), k=0, p=1;
             // do{

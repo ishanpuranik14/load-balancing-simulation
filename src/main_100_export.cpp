@@ -8,14 +8,14 @@ using namespace std;
 int main()
 {
     unordered_map<int, int> freqs;
-    std::vector<int> keys;
+    std::vector<double> keys;
 
-    Poisson p = Poisson(100);
+    Poisson p = Poisson(1.0/2.0);
     int num_iterations = 10000000;
     double sum = 0;
     for (int i = 0; i < num_iterations; i++)
     {
-        int nextVal = p.generate();
+        double nextVal = p.generate();
         freqs[nextVal]++;
         sum += nextVal;
     }
