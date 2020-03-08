@@ -2,3 +2,5 @@
 .vscode
 *.out
 *.exe
+*.o
+*.csv
