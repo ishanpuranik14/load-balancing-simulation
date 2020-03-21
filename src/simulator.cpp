@@ -50,6 +50,7 @@ public:
 class Server
 {
     long alpha;
+    int server_no;
     std::queue<Request> reqQueue;
     double avgRespSize;
     long totalRespSize;
@@ -57,9 +58,10 @@ class Server
     // utilization
 
 public:
-    Server(long alpha)
+    Server(long alpha, int server_no)
     {
         this->alpha = alpha;
+        this->server_no = server_no;
     }
 
 public:
@@ -84,7 +86,7 @@ public:
     void processData(int timeUnits)
     {
         int maxBytes = timeUnits * alpha;
-        cout << "maxBytes " << maxBytes << endl;
+        cout << "Server #" << server_no << " | maxBytes " << maxBytes << endl;
         while (!reqQueue.empty() && maxBytes > 0)
         {
             Request &cur = reqQueue.front();
@@ -106,16 +108,16 @@ public:
 int main(int argc, char **argv)
 {
     Poisson p = Poisson(1.0 / 2.0);
-    int maxSimulationTime = 1;
+    int maxSimulationTime = 5;
     int time = 0;
     int reqId = 0;
-    int server_count = 1;
+    int server_count = 5;
     int alpha = 50;
 
     Server *server[server_count];
     for (int i = 0; i < server_count; i++)
     {
-        server[i] = new Server(alpha);
+        server[i] = new Server(alpha, i);
     }
     while (time < maxSimulationTime)
     {
