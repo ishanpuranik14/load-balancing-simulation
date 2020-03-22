@@ -25,7 +25,6 @@ public:
         this->sentBy = sentBy;
     }
 
-public:
     int getReqId()
     {
         return reqId;
