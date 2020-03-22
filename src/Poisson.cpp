@@ -3,6 +3,7 @@
 
 Poisson::Poisson(double mean):Generator(){
             this->mean = mean;
+            printf("Using Poisson distribution with lambda: %lf\n", mean);
         }
 
 double Poisson::generate(){

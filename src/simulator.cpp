@@ -49,25 +49,31 @@ public:
 
 class Server
 {
-    long alpha;
+    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed;
     int server_no;
-    std::queue<Request> reqQueue;
+    std::queue<Request> reqQueue, processedReqQueue;
     double avgRespSize;
-    long totalRespSize;
-    long totalReqs;
-    // utilization
 
 public:
     Server(long alpha, int server_no)
     {
+        // Initializations
+        totalRespSize = 0;
+        totalReqs = 0;
+        totalRespBytesProcessed = 0;
         this->alpha = alpha;
         this->server_no = server_no;
+        cout<< "\tServer #" << server_no << " | alpha : "<< alpha << endl;
     }
 
-public:
     queue<Request> getReqQueue()
     {
         return reqQueue;
+    }
+
+    queue<Request> getProcessedReqQueue()
+    {
+        return processedReqQueue;
     }
 
     int getAlpha()
@@ -83,73 +89,135 @@ public:
         avgRespSize = totalRespSize / totalReqs;
     }
 
+    long getPendingRequestCount(){
+        return getReqQueue().size();
+    }
+
+    long getPendingRequestSize(){
+        long numRequests = getPendingRequestCount();
+        long pendingReqSize = 0;
+        while(numRequests--){
+            Request &cur = reqQueue.front();
+            pendingReqSize += cur.getPendingSize();
+            reqQueue.pop();
+            reqQueue.push(cur);
+        }
+        return pendingReqSize;
+    }
+
+    long getTotalProcessedBytes(){
+        return totalRespBytesProcessed;
+    }
+
+    long getNumProcessedRequests(){
+        if(!reqQueue.empty()){
+            Request &top = reqQueue.front();
+            if(top.getPendingSize() != top.getRespSize()){
+                return 1 + processedReqQueue.size();
+            }
+        }
+        return processedReqQueue.size();
+    }
+
     void processData(int timeUnits)
     {
         int maxBytes = timeUnits * alpha;
-        cout << "Server #" << server_no << " | maxBytes " << maxBytes << endl;
+        cout << "\t\tServer #" << server_no << " will process " << maxBytes << " bytes in " << timeUnits << " time units" << endl;
         while (!reqQueue.empty() && maxBytes > 0)
         {
             Request &cur = reqQueue.front();
             int pendingSize = cur.getPendingSize();
             if (pendingSize > maxBytes)
             {
+                cout << "\t\t\tServer #" << server_no << " processed " << maxBytes << " / " << cur.getRespSize() << " bytes of response for request #"<< cur.getReqId() << endl;
+                // update
                 cur.updatePendingSize(maxBytes);
+                maxBytes -= maxBytes;
+                totalRespBytesProcessed += maxBytes;
             }
             else
             {
+                // update
+                cur.updatePendingSize(pendingSize);
+                cout << "\t\t\tServer #" << server_no << " processed " << (cur.getRespSize() - cur.getPendingSize()) << " / " << cur.getRespSize() << " bytes of response for request #"<< cur.getReqId() << endl;
                 reqQueue.pop();
+                processedReqQueue.push(cur);
+                maxBytes -= pendingSize;
+                totalRespBytesProcessed += pendingSize;
             }
-            maxBytes -= pendingSize;
-            cout << "maxBytesLeft " << maxBytes << endl;
         }
     }
 };
 
 int main(int argc, char **argv)
 {
-    Poisson p = Poisson(1.0 / 2.0);
+    // Initializations
     int maxSimulationTime = 5;
     int time = 0;
     int reqId = 0;
     int server_count = 5;
     int alpha = 50;
-
     Server *server[server_count];
+    cout << "Simulation parameters: "<< endl << "Simulation time: " << maxSimulationTime << endl << "Number of servers: "<< server_count << endl;
+    Poisson p = Poisson(1.0 / 2.0);
     for (int i = 0; i < server_count; i++)
     {
         server[i] = new Server(alpha, i);
     }
+    // Iteration
+    cout << endl << "----SIMULATION BEGINS----" << endl << endl;
     while (time < maxSimulationTime)
     {
         int nextTime = (int)p.generate();
-        cout << "next req in " << nextTime << endl;
+        cout << "\tTime elapsed " << time << " time units" << endl;
+        cout << "\tNext request arrives in " << nextTime << " time units" << endl;
         time += nextTime;
-
-        Request request = Request(time, 1, -1);
-        cout << "RespSize = " << request.getRespSize() << endl;
+        cout << "\tCreating the current request" << endl;
+        Request request = Request(time-nextTime, 1, -1);
+        cout << "\tCurrent response size = " << request.getRespSize() << endl;
         int nextServer = rand() % server_count;
-        cout << "selecting server " << nextServer << endl;
+        cout << "\tMapping the request on to server #" << nextServer << endl;
         (*server[nextServer]).addRequest(request);
-
+        // Process the requests on each server till the next request comes in
         for (int i = 0; i < server_count; i++)
         {
-            (*server[i]).processData(nextTime);
+            // Take care to process no more than the max simulation time
+            if(time <= maxSimulationTime){
+                (*server[i]).processData(nextTime);
+            } else{
+                (*server[i]).processData(maxSimulationTime - time + nextTime);
+            }
         }
         cout << endl;
     }
-    cout << "----END----" << endl << endl;
-    long processed = alpha * maxSimulationTime;
-
-    int sum = 0;
-    queue<Request> reqQ = (*server[0]).getReqQueue();
-    int pendingReqsCount = reqQ.size();
-    cout << "pendingReqs = " << pendingReqsCount << endl;
-    while (!reqQ.empty())
-    {
-        sum += reqQ.front().getPendingSize();
-        reqQ.pop();
+    cout << "----SIMULATION ENDS----" << endl << endl;
+    // compute and print statistics
+    cout << "----STATISTICS----" << endl << endl;
+    cout << "Per server" << endl;
+    long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0;
+    for (int i = 0; i < server_count; i++){
+        // Get the data
+        long pendingReqsCount = (*server[i]).getPendingRequestCount();
+        long pendingReqsSize = (*server[i]).getPendingRequestSize();
+        long bytesProcessed = (*server[i]).getTotalProcessedBytes();
+        long numProcessedRequests = (*server[i]).getNumProcessedRequests();
+        // Add to cumulative
+        totalPendingReqsCount += pendingReqsCount;
+        totalPendingRespSize += pendingReqsSize;
+        totalBytesProcessed += bytesProcessed;
+        totalRequestsProcessed += numProcessedRequests;
+        // Print out
+        cout << "\tServer #"<< i << endl;
+        cout << "\t\t # of requests processed (even partial) : " << numProcessedRequests << endl;
+        cout << "\t\t Size of processed responses : " << bytesProcessed << " bytes" << endl;
+        cout << "\t\t # of pending requests : " << pendingReqsCount << endl;
+        cout << "\t\t Size of pending responses : " << pendingReqsSize << " bytes" << endl;
     }
-    cout << "sum = " << sum << " total = " << processed << endl;
+    cout << endl << "Cumulative" << endl;
+    cout << "Total # of requests processed (even partial) : " << totalRequestsProcessed << endl;
+    cout << "Total size of processed responses : " << totalBytesProcessed << " bytes" << endl;
+    cout << "Total # of pending requests : " << totalPendingReqsCount << endl;
+    cout << "Total pending response size : " << totalPendingRespSize << " bytes" << endl;
 
     return 0;
 }
