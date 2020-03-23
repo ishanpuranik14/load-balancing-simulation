@@ -197,6 +197,7 @@ public:
         int send_to = server_no;                // Use this to determine whom to send the request to
         long least_load;                        // Use this to store the load of the server chosen
         vector<int> randomly_selected_servers;  // Use this for Power of k
+        int k=2;                                // Use this to play with Power of k
         switch (policyNum){
         case 0:
             /* next server */
@@ -219,7 +220,6 @@ public:
             break;
         case 2:
             /* Power of k */
-            int k=2;                // Use this to play with Power of k
             least_load = LONG_MAX;
             int randomly_selected_server;
             for(int i=0; i<k; i++){
