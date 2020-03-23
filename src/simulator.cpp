@@ -8,6 +8,8 @@ int reqIdGen = 0;
 class Request
 {
     int timestamp;
+    int forwardingTimestamp;
+    int finishedTimestamp;
     int reqSize;
     int respSize; // bytes
     int pendingSize;
@@ -43,6 +45,30 @@ public:
     void updatePendingSize(int bytesProcessed)
     {
         pendingSize = pendingSize - bytesProcessed;
+    }
+
+    int getSentBy(){
+        return sentBy;
+    }
+
+    void updateSentBy(int resentBy){
+        sentBy = resentBy;
+    }
+
+    int getForwardingTimestamp(){
+        return forwardingTimestamp;
+    }
+
+    void updateForwardingTimestamp(int forwardingTimestamp){
+        this->forwardingTimestamp = forwardingTimestamp;
+    }
+
+    int getFinishedTimestamp(){
+        return finishedTimestamp;
+    }
+
+    void updateFinishedTimestamp(int finishedTimestamp){
+        this->finishedTimestamp = finishedTimestamp;
     }
 };
 
@@ -118,10 +144,134 @@ public:
         return processedReqQueue.size();
     }
 
-    void processData(int timeUnits)
+    bool whenPolicy(int policyNum, int timeDelta, Server *servers, int server_count){
+        /*
+        Use the when policy to determine whether to forward any request(s)
+        */
+       switch (policyNum)
+       {
+       case 0:
+           /* code */
+           break;
+       
+       default:
+           break;
+       }
+    }
+
+    vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers, int server_count){
+        /*
+        Use the what policy to determine which request(s) to forward
+        */
+        vector<Request> requestsToBeForwarded;
+        // Go thru all the requests
+        long numRequests = getPendingRequestCount();
+        while(numRequests--){
+            // Get the request
+            Request &cur = reqQueue.front();
+            // Apply the policy
+            switch (policyNum){
+                case 0:
+                    // forward the ones whose size > avg
+                    if(cur.getRespSize() > avgRespSize){
+                        requestsToBeForwarded.push_back(cur);
+                    }
+                    break;
+                
+                default:
+                    break;
+            }
+            // Add to the back of the queue
+            reqQueue.pop();
+            reqQueue.push(cur);
+        }
+    }
+
+    int wherePolicy(int policyNum, int timeDelta, Server *servers, int server_count, Request requestToBeForwarded){
+        /*
+        Use the where policy to send to the appropriate server
+        */
+        int send_to = server_no;                // Use this to determine whom to send the request to
+        long least_load;                        // Use this to store the load of the server chosen
+        vector<int> randomly_selected_servers;  // Use this for Power of k
+        switch (policyNum){
+        case 0:
+            /* next server */
+            send_to = (server_no+1)%server_count;
+            least_load = servers[send_to].getPendingRequestSize();
+            break;
+        case 1:
+            /* least loaded */
+            least_load = servers[(server_no+1)%server_count].getPendingRequestSize();
+            send_to = (server_no+1)%server_count;
+            for(int i=0; i<server_count; i++){
+                if(i != server_no){
+                    long load = servers[i].getPendingRequestSize(); 
+                    if(load<least_load){
+                        least_load = load;
+                        send_to = i;
+                    }
+                }
+            }
+            break;
+        case 2:
+            /* Power of k */
+            int k=2;                // Use this to play with Power of k
+            least_load = LONG_MAX;
+            int randomly_selected_server;
+            for(int i=0; i<k; i++){
+                randomly_selected_server = rand() % server_count;
+                // Regenerate if redundant
+                while(randomly_selected_server == server_no || (find(randomly_selected_servers.begin(), randomly_selected_servers.end(), randomly_selected_server) != randomly_selected_servers.end())){
+                    randomly_selected_server = rand() % server_count;
+                }
+                randomly_selected_servers.push_back(randomly_selected_server);
+                long load = servers[randomly_selected_server].getPendingRequestSize();
+                if(load<least_load){
+                    least_load = load;
+                    send_to = randomly_selected_server;
+                }
+            }
+            break;
+        default:
+            break;
+        }
+        // Sanity check so as to not forward requests to other servers with higher load
+        if(least_load > getPendingRequestSize()){
+            return -1;
+        }
+        return send_to;
+    }
+
+    void forwardRequest(int currentTime, int send_to, Request requestToBeForwarded, Server *servers, int server_count){
+        // Update the relevant stats as you send stuff
+        // TODO see how to purge requests
+        servers[send_to].addRequest(requestToBeForwarded);
+    }
+
+    void executeForwardingPipeline(int currentTime, int timeDelta, Server *servers, int server_count){
+        // Execute the when, what and where policies keeping in mind the timeUnits
+        int when_policy = 0;    // Use this to control the when policy
+        int what_policy = 0;    // Use this to control the what policy
+        int where_policy = 0;   // Use this to control the where policy
+        while(whenPolicy(when_policy, timeDelta, servers, server_count)){
+            // Go thru and execute the what policy till it becomes inapplicable
+            vector<Request> requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
+            // Forward each request using the where policy
+            for(int i=0; i<requestsToBeForwarded.size(); i++){
+                int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
+                if(send_to != server_no && send_to != -1){
+                    forwardRequest(currentTime, send_to, requestsToBeForwarded[i], servers, server_count);
+                }
+            }
+        }
+    }
+
+    void processData(int currentTime, int timeDelta, Server *servers, int server_count)
     {
-        int maxBytes = timeUnits * alpha;
-        cout << "\t\tServer #" << server_no << " will process " << maxBytes << " bytes in " << timeUnits << " time units" << endl;
+        int maxBytes = timeDelta * alpha;
+        // Conduct normal execution on this server
+        cout << "\t\tServer #" << server_no << " will process " << maxBytes << " bytes in " << timeDelta << " time units" << endl;
         while (!reqQueue.empty() && maxBytes > 0)
         {
             Request &cur = reqQueue.front();
@@ -156,36 +306,37 @@ int main(int argc, char **argv)
     int reqId = 0;
     int server_count = 5;
     int alpha = 50;
-    Server *server[server_count];
+    Server *servers[server_count];
     cout << "Simulation parameters: "<< endl << "Simulation time: " << maxSimulationTime << endl << "Number of servers: "<< server_count << endl;
     Poisson p = Poisson(1.0 / 2.0);
     for (int i = 0; i < server_count; i++)
     {
-        server[i] = new Server(alpha, i);
+        servers[i] = new Server(alpha, i);
     }
     // Iteration
     cout << endl << "----SIMULATION BEGINS----" << endl << endl;
     while (time < maxSimulationTime)
     {
-        int nextTime = (int)p.generate();
+        int t = 0, nextTimeDelta = (int)p.generate();
         cout << "\tTime elapsed " << time << " time units" << endl;
-        cout << "\tNext request arrives in " << nextTime << " time units" << endl;
-        time += nextTime;
+        cout << "\tNext request arrives in " << nextTimeDelta << " time units" << endl;
         cout << "\tCreating the current request" << endl;
-        Request request = Request(time-nextTime, 1, -1);
+        Request request = Request(time, 1, -1);
         cout << "\tCurrent response size = " << request.getRespSize() << endl;
         int nextServer = rand() % server_count;
         cout << "\tMapping the request on to server #" << nextServer << endl;
-        (*server[nextServer]).addRequest(request);
-        // Process the requests on each server till the next request comes in
-        for (int i = 0; i < server_count; i++)
-        {
-            // Take care to process no more than the max simulation time
-            if(time <= maxSimulationTime){
-                (*server[i]).processData(nextTime);
-            } else{
-                (*server[i]).processData(maxSimulationTime - time + nextTime);
+        (*servers[nextServer]).addRequest(request);
+        while((t++ < nextTimeDelta) && (time+t <= maxSimulationTime)){
+            // Execute policies to forward packets via RDMA
+            for(int i = 0; i < server_count; i++){
+                (*servers[i]).executeForwardingPipeline(time, 1, *servers, server_count);
             }
+            // Process the requests on each server till the next request comes in
+            for (int i = 0; i < server_count; i++)
+            {
+                (*servers[i]).processData(time, 1, *servers, server_count);
+            }
+            time++;
         }
         cout << endl;
     }
@@ -196,10 +347,10 @@ int main(int argc, char **argv)
     long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0;
     for (int i = 0; i < server_count; i++){
         // Get the data
-        long pendingReqsCount = (*server[i]).getPendingRequestCount();
-        long pendingReqsSize = (*server[i]).getPendingRequestSize();
-        long bytesProcessed = (*server[i]).getTotalProcessedBytes();
-        long numProcessedRequests = (*server[i]).getNumProcessedRequests();
+        long pendingReqsCount = (*servers[i]).getPendingRequestCount();
+        long pendingReqsSize = (*servers[i]).getPendingRequestSize();
+        long bytesProcessed = (*servers[i]).getTotalProcessedBytes();
+        long numProcessedRequests = (*servers[i]).getNumProcessedRequests();
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
         totalPendingRespSize += pendingReqsSize;
