@@ -151,7 +151,7 @@ public:
        switch (policyNum)
        {
        case 0:
-           /* code */
+           return true;
            break;
        
        default:
@@ -169,17 +169,20 @@ public:
         while(numRequests--){
             // Get the request
             Request &cur = reqQueue.front();
-            // Apply the policy
-            switch (policyNum){
-                case 0:
-                    // forward the ones whose size > avg
-                    if(cur.getRespSize() > avgRespSize){
-                        requestsToBeForwarded.push_back(cur);
-                    }
-                    break;
-                
-                default:
-                    break;
+            // Dont consider partially processed/ forwarded requests
+            if(cur.getRespSize() == cur.getPendingSize() && cur.getSentBy() == -1){
+                // Apply the policy
+                switch (policyNum){
+                    case 0:
+                        // forward the ones whose size > avg
+                        if(cur.getRespSize() > avgRespSize){
+                            requestsToBeForwarded.push_back(cur);
+                        }
+                        break;
+                    
+                    default:
+                        break;
+                }
             }
             // Add to the back of the queue
             reqQueue.pop();
@@ -243,9 +246,27 @@ public:
         return send_to;
     }
 
+    void removeRequest(Request requestToBeRemoved){
+        long numRequests = getPendingRequestCount();
+        while(numRequests--){
+            // Get the request
+            Request &cur = reqQueue.front();
+            reqQueue.pop();
+            // Ignore if this is the one to be removed
+            if(cur.getReqId() != requestToBeRemoved.getReqId()){
+                // Add to the back of the queue
+                reqQueue.push(cur);
+            }
+        }
+    }
+
     void forwardRequest(int currentTime, int send_to, Request requestToBeForwarded, Server *servers, int server_count){
+        // purge the request fm the queue
+        removeRequest(requestToBeForwarded);
+        // Add the request in the reciever's queue
         // Update the relevant stats as you send stuff
-        // TODO see how to purge requests
+        requestToBeForwarded.updateSentBy(server_no);
+        requestToBeForwarded.updateForwardingTimestamp(currentTime);
         servers[send_to].addRequest(requestToBeForwarded);
     }
 
@@ -290,6 +311,7 @@ public:
                 cur.updatePendingSize(pendingSize);
                 cout << "\t\t\tServer #" << server_no << " processed " << (cur.getRespSize() - cur.getPendingSize()) << " / " << cur.getRespSize() << " bytes of response for request #"<< cur.getReqId() << endl;
                 reqQueue.pop();
+                cur.updateFinishedTimestamp(currentTime);
                 processedReqQueue.push(cur);
                 maxBytes -= pendingSize;
                 totalRespBytesProcessed += pendingSize;
