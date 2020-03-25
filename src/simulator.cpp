@@ -166,6 +166,7 @@ public:
         vector<Request> requestsToBeForwarded;
         // Go thru all the requests
         long numRequests = getPendingRequestCount();
+        cout << "\t\t\tWhat policy #"<<policyNum<<":"<< endl;
         while(numRequests--){
             // Get the request
             Request &cur = reqQueue.front();
@@ -176,6 +177,7 @@ public:
                     case 0:
                         // forward the ones whose size > avg
                         if(cur.getRespSize() > avgRespSize){
+                            cout << "\t\t\t\tRequestID: "<<cur.getReqId()<<" qualifies for forwarding"<< endl;
                             requestsToBeForwarded.push_back(cur);
                         }
                         break;
@@ -243,6 +245,7 @@ public:
         if(least_load > getPendingRequestSize()){
             return -1;
         }
+        cout << "\t\t\tWhere policy #"<<policyNum<<": the least load is for " << send_to << " and is equal to "<< least_load << " bytes" << endl;
         return send_to;
     }
 
@@ -275,13 +278,18 @@ public:
         int when_policy = 0;    // Use this to control the when policy
         int what_policy = 0;    // Use this to control the what policy
         int where_policy = 0;   // Use this to control the where policy
+        cout << "\t\tServer #" << server_no << " will execute the when policy" << endl;
         while(whenPolicy(when_policy, timeDelta, servers, server_count)){
+            cout << "\t\tServer #" << server_no << " will execute the what policy" << endl;
             // Go thru and execute the what policy till it becomes inapplicable
             vector<Request> requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
             // Forward each request using the where policy
             for(int i=0; i<requestsToBeForwarded.size(); i++){
+                
+                cout << "\t\tServer #" << server_no << " will execute the where policy for requestID: "<< requestsToBeForwarded[i].getReqId() << endl;
                 int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
                 if(send_to != server_no && send_to != -1){
+                    cout << "\t\tServer #" << server_no << " will forward the requestID: "<< requestsToBeForwarded[i].getReqId()<< " to the server#: " << send_to << endl;
                     forwardRequest(currentTime, send_to, requestsToBeForwarded[i], servers, server_count);
                 }
             }
