@@ -148,15 +148,25 @@ public:
         /*
         Use the when policy to determine whether to forward any request(s)
         */
+       bool time_to_forward = false;
+       double policy_0_threshold = 1.5;
+       double utilization = 0;
+       cout << "\t\t\tWhen policy #"<<policyNum<<":"<< endl;
        switch (policyNum)
        {
        case 0:
-           return true;
-           break;
-       
+            // Using utilization
+            utilization = (getPendingRequestSize()*1.0)/alpha;
+            cout << "\t\t\t\tServer #"<<server_no<<" | utilization: "<<utilization<<" | threshold: "<< policy_0_threshold<< endl;
+            if(utilization > policy_0_threshold){
+                time_to_forward = true;
+            }
+            break;
+        
        default:
            break;
        }
+       return time_to_forward;
     }
 
     vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers, int server_count){
