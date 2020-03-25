@@ -200,6 +200,7 @@ public:
             reqQueue.pop();
             reqQueue.push(cur);
         }
+        return requestsToBeForwarded;
     }
 
     int wherePolicy(int policyNum, int timeDelta, Server *servers, int server_count, Request requestToBeForwarded){
@@ -360,8 +361,8 @@ int main(int argc, char **argv)
         int t = 0, nextTimeDelta = (int)p.generate();
         cout << "\tTime elapsed " << time << " time units" << endl;
         cout << "\tNext request arrives in " << nextTimeDelta << " time units" << endl;
-        cout << "\tCreating the current request" << endl;
         Request request = Request(time, 1, -1);
+        cout << "\tCreated the current request with ID: "<< request.getReqId() << endl;
         cout << "\tCurrent response size = " << request.getRespSize() << endl;
         int nextServer = rand() % server_count;
         cout << "\tMapping the request on to server #" << nextServer << endl;
