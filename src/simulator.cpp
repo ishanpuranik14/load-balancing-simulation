@@ -144,7 +144,7 @@ public:
         return processedReqQueue.size();
     }
 
-    bool whenPolicy(int policyNum, int timeDelta, Server *servers, int server_count){
+    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count){
         /*
         Use the when policy to determine whether to forward any request(s)
         */
@@ -169,7 +169,7 @@ public:
        return time_to_forward;
     }
 
-    vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers, int server_count){
+    vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count){
         /*
         Use the what policy to determine which request(s) to forward
         */
@@ -203,7 +203,7 @@ public:
         return requestsToBeForwarded;
     }
 
-    int wherePolicy(int policyNum, int timeDelta, Server *servers, int server_count, Request requestToBeForwarded){
+    int wherePolicy(int policyNum, int timeDelta, Server *servers[], int server_count, Request requestToBeForwarded){
         /*
         Use the where policy to send to the appropriate server
         */
@@ -211,19 +211,20 @@ public:
         long least_load;                        // Use this to store the load of the server chosen
         vector<int> randomly_selected_servers;  // Use this for Power of k
         int k=2;                                // Use this to play with Power of k
+        cout << "\t\t\tWhere Policy #"<<policyNum<<" executing switch"<< endl;
         switch (policyNum){
         case 0:
             /* next server */
             send_to = (server_no+1)%server_count;
-            least_load = servers[send_to].getPendingRequestSize();
+            least_load = (*servers[send_to]).getPendingRequestSize();
             break;
         case 1:
             /* least loaded */
-            least_load = servers[(server_no+1)%server_count].getPendingRequestSize();
+            least_load = (*servers[(server_no+1)%server_count]).getPendingRequestSize();
             send_to = (server_no+1)%server_count;
             for(int i=0; i<server_count; i++){
                 if(i != server_no){
-                    long load = servers[i].getPendingRequestSize(); 
+                    long load = (*servers[i]).getPendingRequestSize(); 
                     if(load<least_load){
                         least_load = load;
                         send_to = i;
@@ -242,7 +243,7 @@ public:
                     randomly_selected_server = rand() % server_count;
                 }
                 randomly_selected_servers.push_back(randomly_selected_server);
-                long load = servers[randomly_selected_server].getPendingRequestSize();
+                long load = (*servers[randomly_selected_server]).getPendingRequestSize();
                 if(load<least_load){
                     least_load = load;
                     send_to = randomly_selected_server;
@@ -274,17 +275,17 @@ public:
         }
     }
 
-    void forwardRequest(int currentTime, int send_to, Request requestToBeForwarded, Server *servers, int server_count){
+    void forwardRequest(int currentTime, int send_to, Request requestToBeForwarded, Server *servers[], int server_count){
         // purge the request fm the queue
         removeRequest(requestToBeForwarded);
         // Add the request in the reciever's queue
         // Update the relevant stats as you send stuff
         requestToBeForwarded.updateSentBy(server_no);
         requestToBeForwarded.updateForwardingTimestamp(currentTime);
-        servers[send_to].addRequest(requestToBeForwarded);
+        (*servers[send_to]).addRequest(requestToBeForwarded);
     }
 
-    void executeForwardingPipeline(int currentTime, int timeDelta, Server *servers, int server_count){
+    void executeForwardingPipeline(int currentTime, int timeDelta, Server *servers[], int server_count){
         // Execute the when, what and where policies keeping in mind the timeUnits
         int when_policy = 0;    // Use this to control the when policy
         int what_policy = 0;    // Use this to control the what policy
@@ -307,7 +308,7 @@ public:
         }
     }
 
-    void processData(int currentTime, int timeDelta, Server *servers, int server_count)
+    void processData(int currentTime, int timeDelta, Server *servers[], int server_count)
     {
         int maxBytes = timeDelta * alpha;
         // Conduct normal execution on this server
@@ -370,12 +371,12 @@ int main(int argc, char **argv)
         while((t++ < nextTimeDelta) && (time+t <= maxSimulationTime)){
             // Execute policies to forward packets via RDMA
             for(int i = 0; i < server_count; i++){
-                (*servers[i]).executeForwardingPipeline(time, 1, *servers, server_count);
+                (*servers[i]).executeForwardingPipeline(time, 1, servers, server_count);
             }
             // Process the requests on each server till the next request comes in
             for (int i = 0; i < server_count; i++)
             {
-                (*servers[i]).processData(time, 1, *servers, server_count);
+                (*servers[i]).processData(time, 1, servers, server_count);
             }
             time++;
         }
