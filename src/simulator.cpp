@@ -292,19 +292,21 @@ public:
         int where_policy = 0;   // Use this to control the where policy
         cout << "\t\tServer #" << server_no << " will execute the when policy" << endl;
         while(whenPolicy(when_policy, timeDelta, servers, server_count)){
+            int num_requests_forwarded = 0;
             cout << "\t\tServer #" << server_no << " will execute the what policy" << endl;
             // Go thru and execute the what policy till it becomes inapplicable
             vector<Request> requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
             // Forward each request using the where policy
             for(int i=0; i<requestsToBeForwarded.size(); i++){
-                
                 cout << "\t\tServer #" << server_no << " will execute the where policy for requestID: "<< requestsToBeForwarded[i].getReqId() << endl;
                 int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
                 if(send_to != server_no && send_to != -1){
+                    num_requests_forwarded++;
                     cout << "\t\tServer #" << server_no << " will forward the requestID: "<< requestsToBeForwarded[i].getReqId()<< " to the server#: " << send_to << endl;
                     forwardRequest(currentTime, send_to, requestsToBeForwarded[i], servers, server_count);
                 }
             }
+            if(!num_requests_forwarded)break;
         }
     }
 
