@@ -77,6 +77,7 @@ class Server
     long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed;
     int server_no;
     std::queue<Request> reqQueue, processedReqQueue;
+    std::queue<pair<int, Request>> deferredRequests;
     double avgRespSize;
 
 public:
@@ -277,14 +278,24 @@ public:
         }
     }
 
-    void forwardRequest(int currentTime, int send_to, Request requestToBeForwarded, Server *servers[], int server_count){
+    void forwardRequest(int currentTime, int send_to, Request requestToBeForwarded, Server *servers[], int server_count, bool removeRequestFromQueue=true){
         // purge the request fm the queue
-        removeRequest(requestToBeForwarded);
+        if(removeRequestFromQueue){
+            removeRequest(requestToBeForwarded);
+        }
         // Add the request in the reciever's queue
         // Update the relevant stats as you send stuff
         requestToBeForwarded.updateSentBy(server_no);
         requestToBeForwarded.updateForwardingTimestamp(currentTime);
         (*servers[send_to]).addRequest(requestToBeForwarded);
+    }
+
+    void forwardDeferredRequests(int currentTime, Server *servers[], int server_count){
+        while(!deferredRequests.empty()){
+            pair<int, Request> forwardingInfo = deferredRequests.front();
+            deferredRequests.pop();
+            forwardRequest(currentTime, forwardingInfo.first, forwardingInfo.second, servers, server_count, false);
+        }
     }
 
     void executeForwardingPipeline(int currentTime, int timeDelta, Server *servers[], int server_count){
@@ -305,7 +316,10 @@ public:
                 if(send_to != server_no && send_to != -1){
                     num_requests_forwarded++;
                     cout << "\t\tServer #" << server_no << " will forward the requestID: "<< requestsToBeForwarded[i].getReqId()<< " to the server#: " << send_to << endl;
-                    forwardRequest(currentTime, send_to, requestsToBeForwarded[i], servers, server_count);
+                    // Put in queue so that it can be forwarded once every server has executed the pipeline
+                    deferredRequests.push(make_pair(send_to, requestsToBeForwarded[i]));
+                    // purge the request fm the queue
+                    removeRequest(requestsToBeForwarded[i]);
                 }
             }
             if(!num_requests_forwarded)break;
@@ -351,7 +365,7 @@ int main(int argc, char **argv)
     int time = 0;
     int reqId = 0;
     int server_count = 5;
-    int alpha[server_count] = {50, 50, 50, 50, 100};
+    int alpha[server_count] = {50, 50, 50, 50, 50};
     Server *servers[server_count];
     cout << "Simulation parameters: "<< endl << "Simulation time: " << maxSimulationTime << endl << "Number of servers: "<< server_count << endl;
     Poisson p = Poisson(1.0 / 2.0);
@@ -372,11 +386,15 @@ int main(int argc, char **argv)
         int nextServer = rand() % server_count;
         cout << "\tMapping the request on to server #" << nextServer << endl;
         (*servers[nextServer]).addRequest(request);
-        while((t++ < nextTimeDelta) && (time+t <= maxSimulationTime)){
+        while((t++ < nextTimeDelta) && (time < maxSimulationTime)){
             cout << "\t\tTime elapsed " << time << " time units" << endl;
             // Execute policies to forward packets via RDMA
             for(int i = 0; i < server_count; i++){
                 (*servers[i]).executeForwardingPipeline(time, 1, servers, server_count);
+            }
+            // Forward requests
+            for(int i = 0; i < server_count; i++){
+                (*servers[i]).forwardDeferredRequests(time, servers, server_count);
             }
             // Process the requests on each server till the next request comes in
             for (int i = 0; i < server_count; i++)
