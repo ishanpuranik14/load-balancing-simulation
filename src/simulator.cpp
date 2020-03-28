@@ -177,9 +177,11 @@ public:
         // Go thru all the requests
         long numRequests = getPendingRequestCount();
         cout << "\t\t\tWhat policy #"<<policyNum<<":"<< endl;
+        cout << "\t\t\tServer #"<<server_no<<" has average response size: "<<avgRespSize<< endl;
         while(numRequests--){
             // Get the request
             Request &cur = reqQueue.front();
+            cout << "\t\t\t\tConsidering RequestID: "<<cur.getReqId()<<" with response size: "<<cur.getRespSize()<<" and pending size: "<<cur.getPendingSize()<< endl;
             // Dont consider partially processed/ forwarded requests
             if(cur.getRespSize() == cur.getPendingSize() && cur.getSentBy() == -1){
                 // Apply the policy
@@ -187,7 +189,7 @@ public:
                     case 0:
                         // forward the ones whose size > avg
                         if(cur.getRespSize() > avgRespSize){
-                            cout << "\t\t\t\tRequestID: "<<cur.getReqId()<<" qualifies for forwarding"<< endl;
+                            cout << "\t\t\t\t\tRequestID: "<<cur.getReqId()<<" qualifies for forwarding"<< endl;
                             requestsToBeForwarded.push_back(cur);
                         }
                         break;
@@ -349,13 +351,13 @@ int main(int argc, char **argv)
     int time = 0;
     int reqId = 0;
     int server_count = 5;
-    int alpha = 50;
+    int alpha[server_count] = {50, 50, 50, 50, 100};
     Server *servers[server_count];
     cout << "Simulation parameters: "<< endl << "Simulation time: " << maxSimulationTime << endl << "Number of servers: "<< server_count << endl;
     Poisson p = Poisson(1.0 / 2.0);
     for (int i = 0; i < server_count; i++)
     {
-        servers[i] = new Server(alpha, i);
+        servers[i] = new Server(alpha[i], i);
     }
     // Iteration
     cout << endl << "----SIMULATION BEGINS----" << endl << endl;
@@ -371,6 +373,7 @@ int main(int argc, char **argv)
         cout << "\tMapping the request on to server #" << nextServer << endl;
         (*servers[nextServer]).addRequest(request);
         while((t++ < nextTimeDelta) && (time+t <= maxSimulationTime)){
+            cout << "\t\tTime elapsed " << time << " time units" << endl;
             // Execute policies to forward packets via RDMA
             for(int i = 0; i < server_count; i++){
                 (*servers[i]).executeForwardingPipeline(time, 1, servers, server_count);
