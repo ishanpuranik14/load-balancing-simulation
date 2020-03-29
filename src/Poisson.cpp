@@ -1,18 +1,20 @@
 #include "Poisson.h"
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
+#include "spdlog/spdlog.h"
 
-Poisson::Poisson(double mean):Generator(){
-            this->mean = mean;
-            printf("Using Poisson distribution with lambda: %lf\n", mean);
-        }
+Poisson::Poisson(double mean) : Generator()
+{
+    this->mean = mean;
+    spdlog::info("Using Poisson distribution with lambda: {}\n", mean);
+}
 
-double Poisson::generate(){
-            return -logf(1.0f - generate_random_number(0,1)) / (this->mean);
-            // double L = exp(-(this->mean)), k=0, p=1;
-            // do{
-            //     k += 1;
-            //     p *= generate_random_number(0,1);
-            // } while (p>L);
-            // return k-1;
-        }
- 
+double Poisson::generate()
+{
+    return -logf(1.0f - generate_random_number(0, 1)) / (this->mean);
+    // double L = exp(-(this->mean)), k=0, p=1;
+    // do{
+    //     k += 1;
+    //     p *= generate_random_number(0,1);
+    // } while (p>L);
+    // return k-1;
+}
