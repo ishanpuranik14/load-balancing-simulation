@@ -435,6 +435,7 @@ public:
 };
 
 void printStatistics(Server *servers[], int server_count, double time){
+    cout << endl;
     spdlog::info("----STATISTICS----");
     cout << endl;
     spdlog::info("Per server");
@@ -442,7 +443,7 @@ void printStatistics(Server *servers[], int server_count, double time){
     ifstream infile(serverStats);
     if(!infile.good()){
         outputFile.open(serverStats);
-        outputFile << "Time" << "," << "Server_no" << ","  << "Pending_Requests" << "," << "Pending_req_size"<<","<<"Utilization"<<","<<"Busy Time"<<","<<"Average Service Rate"<<endl;
+        outputFile << "Time" << "," << "Server_no" << ","  << "Pending_Requests" << "," << "Pending_req_size"<<","<<"Processed Requests"<<","<<"Processed req size"<<","<<"Utilization"<<","<<"Busy Time"<<","<<"Average Service Rate"<<endl;
         outputFile.close();
         outputFile.open(overallStats);
         outputFile << "Time" << "," << "Total_reqs_processed" << ","  << "Avg_utilization" << "," << "total_bytes_processed"<<","<<"total_pending_reqs"<<","<<"total_pending_respSize"<<endl;
@@ -477,7 +478,7 @@ void printStatistics(Server *servers[], int server_count, double time){
         spdlog::info("\t\t Utilization : {} bytes", utilization);
         spdlog::info("\t\t Busy time: {}", busyTime); 
         spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
-        outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<utilization<<","<<busyTime<<","<<averageServiceRate<<endl;
+        outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<numProcessedRequests<<","<<bytesProcessed<<","<<utilization<<","<<busyTime<<","<<averageServiceRate<<endl;
     }
     cout << endl;
     outputFile.close();
