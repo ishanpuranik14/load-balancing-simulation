@@ -104,7 +104,7 @@ public:
         utilization = 0.0;
         this->alpha = alpha;
         this->server_no = server_no;
-        spdlog::info("\tServer #{} | alpha : {}", server_no, alpha);
+        spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
     }
 
     queue<Request> getReqQueue()
@@ -184,13 +184,13 @@ public:
         */
         bool time_to_forward = false;
        double policy_0_threshold = 1.5;
-       spdlog::info("\t\t\tWhen policy #{}:", policyNum);
+       spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
        switch (policyNum)
        {
        case 0:
             // Using utilization
             this->utilization = calculateUtilization();
-            spdlog::info("\t\t\t\tServer #{} | utilization: {} | threshold: {}", server_no, utilization, policy_0_threshold);
+            spdlog::trace("\t\t\t\tServer #{} | utilization: {} | threshold: {}", server_no, utilization, policy_0_threshold);
             if(this->utilization > policy_0_threshold){
                 time_to_forward = true;
             }
@@ -209,13 +209,13 @@ public:
         vector<Request> requestsToBeForwarded;
         // Go thru all the requests
         long numRequests = getPendingRequestCount();
-        spdlog::info("\t\t\tWhat policy #{}:", policyNum);
-        spdlog::info("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
+        spdlog::trace("\t\t\tWhat policy #{}:", policyNum);
+        spdlog::trace("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
         while (numRequests--)
         {
             // Get the request
             Request &cur = reqQueue.front();
-            spdlog::info("\t\t\t\tConsidering RequestID: {} with response size: {} and pending size: {}", cur.getReqId(), cur.getRespSize(), cur.getPendingSize());
+            spdlog::trace("\t\t\t\tConsidering RequestID: {} with response size: {} and pending size: {}", cur.getReqId(), cur.getRespSize(), cur.getPendingSize());
             // Dont consider partially processed/ forwarded requests
             if (cur.getRespSize() == cur.getPendingSize() && cur.getSentBy() == -1)
             {
@@ -226,7 +226,7 @@ public:
                     // forward the ones whose size > avg
                     if (cur.getRespSize() > avgRespSize)
                     {
-                        spdlog::info("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
+                        spdlog::trace("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
                         requestsToBeForwarded.push_back(cur);
                     }
                     break;
@@ -251,7 +251,7 @@ public:
         long least_load;                       // Use this to store the load of the server chosen
         vector<int> randomly_selected_servers; // Use this for Power of k
         int k = 2;                             // Use this to play with Power of k
-        spdlog::info("\t\t\tWhere Policy #{} executing switch", policyNum);
+        spdlog::trace("\t\t\tWhere Policy #{} executing switch", policyNum);
         switch (policyNum)
         {
         case 0:
@@ -305,7 +305,7 @@ public:
         {
             return -1;
         }
-        spdlog::info("\t\t\tWhere policy #{}: the least load is for {} and is equal to {} bytes", policyNum, send_to, least_load);
+        spdlog::trace("\t\t\tWhere policy #{}: the least load is for {} and is equal to {} bytes", policyNum, send_to, least_load);
         return send_to;
     }
 
@@ -356,22 +356,22 @@ public:
         int when_policy = 0;  // Use this to control the when policy
         int what_policy = 0;  // Use this to control the what policy
         int where_policy = 0; // Use this to control the where policy
-        spdlog::info("\t\tServer #{} will execute the when policy", server_no);
+        spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
         while (whenPolicy(when_policy, timeDelta, servers, server_count))
         {
             int num_requests_forwarded = 0;
-            spdlog::info("\t\tServer #{} will execute the what policy", server_no);
+            spdlog::trace("\t\tServer #{} will execute the what policy", server_no);
             // Go thru and execute the what policy till it becomes inapplicable
             vector<Request> requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
             // Forward each request using the where policy
             for (int i = 0; i < requestsToBeForwarded.size(); i++)
             {
-                spdlog::info("\t\tServer #{} will execute the where policy for requestID: {}", server_no, requestsToBeForwarded[i].getReqId());
+                spdlog::trace("\t\tServer #{} will execute the where policy for requestID: {}", server_no, requestsToBeForwarded[i].getReqId());
                 int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
                 if (send_to != server_no && send_to != -1)
                 {
                     num_requests_forwarded++;
-                    spdlog::info("\t\tServer #{} will forward the requestID: {} to the server#: ", server_no, requestsToBeForwarded[i].getReqId(), send_to);
+                    spdlog::trace("\t\tServer #{} will forward the requestID: {} to the server#: ", server_no, requestsToBeForwarded[i].getReqId(), send_to);
                     // Put in queue so that it can be forwarded once every server has executed the pipeline
                     deferredRequests.push(make_pair(send_to, requestsToBeForwarded[i]));
                     // purge the request fm the queue
@@ -387,14 +387,14 @@ public:
     {
         int maxBytes = timeDelta * alpha;
         // Conduct normal execution on this server
-        spdlog::info("\t\tServer #{} will process {} bytes in {} time units", server_no, maxBytes, timeDelta);
+        spdlog::trace("\t\tServer #{} will process {} bytes in {} time units", server_no, maxBytes, timeDelta);
         while (!reqQueue.empty() && maxBytes > 0)
         {
             Request &cur = reqQueue.front();
             int pendingSize = cur.getPendingSize();
             if (pendingSize > maxBytes)
             {
-                spdlog::info("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, maxBytes, cur.getRespSize(), cur.getReqId());
+                spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, maxBytes, cur.getRespSize(), cur.getReqId());
                 // update
                 cur.updatePendingSize(maxBytes);
                 maxBytes -= maxBytes;
@@ -404,7 +404,7 @@ public:
             {
                 // update
                 cur.updatePendingSize(pendingSize);
-                spdlog::info("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
+                spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
                 reqQueue.pop();
                 cur.updateFinishedTimestamp(currentTime);
                 processedReqQueue.push(cur);
@@ -483,9 +483,9 @@ int main(int argc, char **argv)
     const int server_count = 5;
     int alpha[server_count] = {50, 50, 50, 50, 50};
     Server *servers[server_count];
-    spdlog::info("Simulation parameters");
-    spdlog::info("Simulation time: {}", maxSimulationTime);
-    spdlog::info("Number of server: {}", server_count);
+    spdlog::trace("Simulation parameters");
+    spdlog::trace("Simulation time: {}", maxSimulationTime);
+    spdlog::trace("Number of server: {}", server_count);
     Poisson p = Poisson(1.0 / 2.0);
     for (int i = 0; i < server_count; i++)
     {
@@ -493,21 +493,21 @@ int main(int argc, char **argv)
     }
     // Iteration
     cout << endl;
-    spdlog::info("----SIMULATION BEGINS----\n\n");
+    spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (time < maxSimulationTime)
     {
         int t = 0, nextTimeDelta = (int)p.generate();
-        spdlog::info("\tTime elapsed {} time units", time);
-        spdlog::info("\tNext request arrives in {} time units", nextTimeDelta);
+        spdlog::trace("\tTime elapsed {} time units", time);
+        spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
         Request request = Request(time, 1, -1);
-        spdlog::info("\tCreated the current request with ID: {}", request.getReqId());
-        spdlog::info("\tCurrent response size = {}", request.getRespSize());
+        spdlog::trace("\tCreated the current request with ID: {}", request.getReqId());
+        spdlog::trace("\tCurrent response size = {}", request.getRespSize());
         int nextServer = rand() % server_count;
-        spdlog::info("\tMapping the request on to server #{}", nextServer);
+        spdlog::trace("\tMapping the request on to server #{}", nextServer);
         (*servers[nextServer]).addRequest(request);
         while ((t++ < nextTimeDelta) && (time < maxSimulationTime))
         {
-            spdlog::info("\t\tTime elapsed {} time units", time);
+            spdlog::trace("\t\tTime elapsed {} time units", time);
             // Execute policies to forward packets via RDMA
             for (int i = 0; i < server_count; i++)
             {
@@ -535,7 +535,7 @@ int main(int argc, char **argv)
         }
         cout << endl;
     }
-    spdlog::info("----SIMULATION ENDS----");
+    spdlog::trace("----SIMULATION ENDS----");
     cout << endl;
     return 0;
 }
