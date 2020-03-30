@@ -98,7 +98,7 @@ class Server
     int server_no;
     std::queue<Request> reqQueue, processedReqQueue;
     std::queue<pair<int, Request>> deferredRequests;
-    double avgRespSize, utilization;
+    double avgRespSize, utilization, totalBusyTime;
 
 public:
     Server(long alpha, int server_no)
@@ -108,6 +108,7 @@ public:
         totalReqs = 0;
         totalRespBytesProcessed = 0;
         utilization = 0.0;
+        totalBusyTime = 0.0;
         this->alpha = alpha;
         this->server_no = server_no;
         spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
@@ -136,6 +137,10 @@ public:
     double getUtilization()
     {
         return utilization;
+    }
+
+    double getTotalBusyTime(){
+        return totalBusyTime;
     }
 
     void addRequest(Request request)
@@ -168,6 +173,10 @@ public:
     long getTotalProcessedBytes()
     {
         return totalRespBytesProcessed;
+    }
+
+    double getAverageServiceRate(){
+        return (double)getNumProcessedRequests()/totalBusyTime;
     }
 
     long getNumProcessedRequests()
@@ -391,6 +400,7 @@ public:
 
     void processData(int currentTime, int timeDelta, Server *servers[], int server_count)
     {
+        int bytesProcessedInDelta = 0;
         int maxBytes = timeDelta * alpha;
         // Conduct normal execution on this server
         spdlog::trace("\t\tServer #{} will process {} bytes in {} time units", server_no, maxBytes, timeDelta);
@@ -405,6 +415,7 @@ public:
                 cur.updatePendingSize(maxBytes);
                 maxBytes -= maxBytes;
                 totalRespBytesProcessed += maxBytes;
+                bytesProcessedInDelta += maxBytes;
             }
             else
             {
@@ -416,8 +427,10 @@ public:
                 processedReqQueue.push(cur);
                 maxBytes -= pendingSize;
                 totalRespBytesProcessed += pendingSize;
+                bytesProcessedInDelta += pendingSize;
             }
         }
+        totalBusyTime += (double)bytesProcessedInDelta/(double)alpha;
     }
 };
 
@@ -447,6 +460,8 @@ void printStatistics(Server *servers[], int server_count, double time){
         long bytesProcessed = (*servers[i]).getTotalProcessedBytes();
         long numProcessedRequests = (*servers[i]).getNumProcessedRequests();
         double utilization =  (*servers[i]).calculateUtilization();
+        double busyTime = (*servers[i]).getTotalBusyTime();
+        double averageServiceRate = (*servers[i]).getAverageServiceRate();
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
         totalPendingRespSize += pendingReqsSize;
@@ -460,6 +475,8 @@ void printStatistics(Server *servers[], int server_count, double time){
         spdlog::info("\t\t # of pending requests : {}", pendingReqsCount);
         spdlog::info("\t\t Size of pending responses : {} bytes", pendingReqsSize);
         spdlog::info("\t\t Utilization : {} bytes", utilization);
+        spdlog::info("\t\t Busy time: {}", busyTime); 
+        spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
         outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<utilization<<endl;
     }
     cout << endl;
