@@ -8,6 +8,10 @@
 using namespace std;
 
 int reqIdGen = 0;
+ofstream outputFile;
+string serverStats = "serverStats.csv";
+string overallStats = "overallStats.csv";
+
 
 class Request
 {
@@ -88,7 +92,7 @@ class Server
     int server_no;
     std::queue<Request> reqQueue, processedReqQueue;
     std::queue<pair<int, Request>> deferredRequests;
-    double avgRespSize;
+    double avgRespSize, utilization;
 
 public:
     Server(long alpha, int server_no)
@@ -97,6 +101,7 @@ public:
         totalRespSize = 0;
         totalReqs = 0;
         totalRespBytesProcessed = 0;
+        utilization = 0.0;
         this->alpha = alpha;
         this->server_no = server_no;
         spdlog::info("\tServer #{} | alpha : {}", server_no, alpha);
@@ -115,6 +120,16 @@ public:
     long getAlpha()
     {
         return alpha;
+    }
+
+    double calculateUtilization()
+    {
+        return double((getPendingRequestSize()*1.0)/double(alpha));
+    }
+
+    double getUtilization()
+    {
+        return utilization;
     }
 
     void addRequest(Request request)
@@ -168,25 +183,22 @@ public:
         Use the when policy to determine whether to forward any request(s)
         */
         bool time_to_forward = false;
-        double policy_0_threshold = 1.5;
-        double utilization = 0;
-        spdlog::info("\t\t\tWhen policy #{}:", policyNum);
-        switch (policyNum)
-        {
-        case 0:
+       double policy_0_threshold = 1.5;
+       spdlog::info("\t\t\tWhen policy #{}:", policyNum);
+       switch (policyNum)
+       {
+       case 0:
             // Using utilization
-            utilization = (getPendingRequestSize() * 1.0) / alpha;
+            this->utilization = calculateUtilization();
             spdlog::info("\t\t\t\tServer #{} | utilization: {} | threshold: {}", server_no, utilization, policy_0_threshold);
-            if (utilization > policy_0_threshold)
-            {
+            if(this->utilization > policy_0_threshold){
                 time_to_forward = true;
             }
             break;
-
-        default:
-            break;
-        }
-        return time_to_forward;
+       default:
+           break;
+       }
+       return time_to_forward;
     }
 
     vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count)
@@ -403,12 +415,70 @@ public:
     }
 };
 
+void printStatistics(Server *servers[], int server_count, double time){
+    spdlog::info("----STATISTICS----");
+    cout << endl;
+    spdlog::info("Per server");
+
+    ifstream infile(serverStats);
+    if(!infile.good()){
+        outputFile.open(serverStats);
+        outputFile << "Time" << "," << "Server_no" << ","  << "Pending_Requests" << "," << "Pending_req_size"<<","<<"Utilization"<<endl;
+        outputFile.close();
+        outputFile.open(overallStats);
+        outputFile << "Time" << "," << "Total_reqs_processed" << ","  << "Avg_utilization" << "," << "total_bytes_processed"<<","<<"total_pending_reqs"<<","<<"total_pending_respSize"<<endl;
+        outputFile.close();
+    }
+    outputFile.open(serverStats,std::ios_base::app);
+
+    long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0;
+    double totalUtilization = 0.0;
+    for (int i = 0; i < server_count; i++)
+    {
+        // Get the data
+        long pendingReqsCount = (*servers[i]).getPendingRequestCount();
+        long pendingReqsSize = (*servers[i]).getPendingRequestSize();
+        long bytesProcessed = (*servers[i]).getTotalProcessedBytes();
+        long numProcessedRequests = (*servers[i]).getNumProcessedRequests();
+        double utilization =  (*servers[i]).getUtilization();
+        // Add to cumulative
+        totalPendingReqsCount += pendingReqsCount;
+        totalPendingRespSize += pendingReqsSize;
+        totalBytesProcessed += bytesProcessed;
+        totalRequestsProcessed += numProcessedRequests;
+        totalUtilization += utilization;
+        // Print out
+        spdlog::info("\tServer #{}", i);
+        spdlog::info("\t\t # of requests processed (even partial) : {}", numProcessedRequests);
+        spdlog::info("\t\t Size of processed responses : {} bytes", bytesProcessed);
+        spdlog::info("\t\t # of pending requests : {}", pendingReqsCount);
+        spdlog::info("\t\t Size of pending responses : {} bytes", pendingReqsSize);
+        spdlog::info("\t\t Utilization : {} bytes", utilization);
+        outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<utilization<<endl;
+    }
+    cout << endl;
+    outputFile.close();
+    outputFile.open(overallStats,std::ios_base::app);
+    outputFile << time << "," << totalRequestsProcessed << ","  << totalUtilization/double(server_count) << "," << totalBytesProcessed<<","<<totalPendingReqsCount<<","<<totalPendingRespSize<<endl;
+    outputFile.close();
+    spdlog::info("Cumulative");
+    spdlog::info("Total # of requests processed (even partial) : {}", totalRequestsProcessed);
+    spdlog::info("Total size of processed responses : {} bytes", totalBytesProcessed);
+    spdlog::info("Total # of pending requests : {}", totalPendingReqsCount);
+    spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
+}
+
 int main(int argc, char **argv)
 {
     spdlog::cfg::load_env_levels();
     // Initializations
-    int maxSimulationTime = 5;
-    int time = 0;
+//    int maxSimulationTime = 5;
+//    int time = 0;
+    double maxSimulationTime = 5;
+    double time = 0;
+    double snapshotInterval = 20.0;
+    double snapshotTime = ((snapshotInterval/100) *maxSimulationTime);
+    double checkTime = snapshotTime;
     int reqId = 0;
     const int server_count = 5;
     int alpha[server_count] = {50, 50, 50, 50, 50};
@@ -454,41 +524,18 @@ int main(int argc, char **argv)
                 (*servers[i]).processData(time, 1, servers, server_count);
             }
             time++;
+            if (time == checkTime) {
+                printStatistics(servers , server_count, time);
+                checkTime += snapshotTime;
+            }
+        }
+        if (time == checkTime) {
+            printStatistics(servers , server_count, time);
+            checkTime += snapshotTime;
         }
         cout << endl;
     }
     spdlog::info("----SIMULATION ENDS----");
     cout << endl;
-    // compute and print statistics
-    spdlog::info("----STATISTICS----");
-    cout << endl;
-    spdlog::info("Per server");
-    long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0;
-    for (int i = 0; i < server_count; i++)
-    {
-        // Get the data
-        long pendingReqsCount = (*servers[i]).getPendingRequestCount();
-        long pendingReqsSize = (*servers[i]).getPendingRequestSize();
-        long bytesProcessed = (*servers[i]).getTotalProcessedBytes();
-        long numProcessedRequests = (*servers[i]).getNumProcessedRequests();
-        // Add to cumulative
-        totalPendingReqsCount += pendingReqsCount;
-        totalPendingRespSize += pendingReqsSize;
-        totalBytesProcessed += bytesProcessed;
-        totalRequestsProcessed += numProcessedRequests;
-        // Print out
-        spdlog::info("\tServer #{}", i);
-        spdlog::info("\t\t # of requests processed (even partial) : {}", numProcessedRequests);
-        spdlog::info("\t\t Size of processed responses : {} bytes", bytesProcessed);
-        spdlog::info("\t\t # of pending requests : {}", pendingReqsCount);
-        spdlog::info("\t\t Size of pending responses : {} bytes", pendingReqsSize);
-    }
-    cout << endl;
-    spdlog::info("Cumulative");
-    spdlog::info("Total # of requests processed (even partial) : {}", totalRequestsProcessed);
-    spdlog::info("Total size of processed responses : {} bytes", totalBytesProcessed);
-    spdlog::info("Total # of pending requests : {}", totalPendingReqsCount);
-    spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
-
     return 0;
 }
