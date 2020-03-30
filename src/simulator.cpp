@@ -410,7 +410,7 @@ int main(int argc, char **argv)
     int maxSimulationTime = 5;
     int time = 0;
     int reqId = 0;
-    int server_count = 5;
+    const int server_count = 5;
     int alpha[server_count] = {50, 50, 50, 50, 50};
     Server *servers[server_count];
     spdlog::info("Simulation parameters");
