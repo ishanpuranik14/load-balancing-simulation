@@ -561,7 +561,6 @@ int main(int argc, char **argv)
             printStatistics(servers , server_count, time);
             checkTime += snapshotTime;
         }
-        cout << endl;
     }
     spdlog::trace("----SIMULATION ENDS----");
     cout << endl;
