@@ -186,7 +186,7 @@ public:
             Request &top = reqQueue.front();
             if (top.getPendingSize() != top.getRespSize())
             {
-                return 1 + processedReqQueue.size();
+                return processedReqQueue.size();
             }
         }
         return processedReqQueue.size();
@@ -202,7 +202,9 @@ public:
        spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
        switch (policyNum)
        {
-       case 0:
+        case -1:
+            break;
+        case 0:
             // Using utilization
             this->utilization = calculateUtilization();
             spdlog::trace("\t\t\t\tServer #{} | utilization: {} | threshold: {}", server_no, utilization, policy_0_threshold);
@@ -210,10 +212,10 @@ public:
                 time_to_forward = true;
             }
             break;
-       default:
-           break;
-       }
-       return time_to_forward;
+        default:
+            break;
+        }
+        return time_to_forward;
     }
 
     vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count)
@@ -368,7 +370,7 @@ public:
     void executeForwardingPipeline(int currentTime, int timeDelta, Server *servers[], int server_count)
     {
         // Execute the when, what and where policies keeping in mind the timeUnits
-        int when_policy = 0;  // Use this to control the when policy
+        int when_policy = -1;  // Use this to control the when policy
         int what_policy = 0;  // Use this to control the what policy
         int where_policy = 0; // Use this to control the where policy
         spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
@@ -410,12 +412,12 @@ public:
             int pendingSize = cur.getPendingSize();
             if (pendingSize > maxBytes)
             {
-                spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, maxBytes, cur.getRespSize(), cur.getReqId());
                 // update
                 cur.updatePendingSize(maxBytes);
-                maxBytes -= maxBytes;
+                spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
                 totalRespBytesProcessed += maxBytes;
                 bytesProcessedInDelta += maxBytes;
+                maxBytes -= maxBytes;
             }
             else
             {
@@ -430,7 +432,8 @@ public:
                 bytesProcessedInDelta += pendingSize;
             }
         }
-        totalBusyTime += (double)bytesProcessedInDelta/(double)alpha;
+        spdlog::trace("\t\t\tServer #{} this iteration: bytes processed: {} | Busytime this iteration: {}", server_no, bytesProcessedInDelta, (bytesProcessedInDelta*1.0)/(alpha*1.0));
+        totalBusyTime += (bytesProcessedInDelta*1.0)/(alpha*1.0);
     }
 };
 
@@ -496,9 +499,9 @@ int main(int argc, char **argv)
 {
     spdlog::cfg::load_env_levels();
     // Initializations
-    double maxSimulationTime = 1000;
+    double maxSimulationTime = 10000;
     double time = 0;
-    double snapshotInterval = 20.0;     // Percentage value
+    double snapshotInterval = 10.0;     // Percentage value
     double snapshotTime = ((snapshotInterval/100) *maxSimulationTime);
     double checkTime = snapshotTime;
     int reqId = 0;
