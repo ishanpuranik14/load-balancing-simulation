@@ -10,8 +10,8 @@ using namespace std;
 
 int reqIdGen = 0;
 ofstream outputFile;
-char *serverStats = "serverStats.csv";
-char *overallStats = "overallStats.csv";
+char const *serverStats = "serverStats.csv";
+char const *overallStats = "overallStats.csv";
 
 
 class Request
@@ -56,6 +56,11 @@ public:
         return pendingSize;
     }
 
+    int getTimestamp()
+    {
+        return timestamp;
+    }
+
     void updatePendingSize(int bytesProcessed)
     {
         pendingSize = pendingSize - bytesProcessed;
@@ -94,11 +99,11 @@ public:
 
 class Server
 {
-    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed, cumulativePendingCount;
+    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed, cumulativePendingCount, totalRespTime;
     int server_no;
     std::queue<Request> reqQueue, processedReqQueue;
     std::queue<pair<int, Request>> deferredRequests;
-    double avgRespSize, utilization, totalBusyTime;
+    double avgRespSize, utilization, totalBusyTime, avgRespTime;
 
 public:
     Server(long alpha, int server_no)
@@ -110,6 +115,7 @@ public:
         cumulativePendingCount = 0;
         utilization = 0.0;
         totalBusyTime = 0.0;
+        totalRespTime = 0;
         this->alpha = alpha;
         this->server_no = server_no;
         spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
@@ -186,6 +192,10 @@ public:
 
     double getAverageServiceRate(){
         return (double)getNumProcessedRequests()/totalBusyTime;
+    }
+
+    double getAvgRespTime() {
+        return ((double) totalRespTime) / processedReqQueue.size();
     }
 
     long getNumProcessedRequests()
@@ -439,6 +449,7 @@ public:
                 maxBytes -= pendingSize;
                 totalRespBytesProcessed += pendingSize;
                 bytesProcessedInDelta += pendingSize;
+                totalRespTime += cur.getFinishedTimestamp() - cur.getTimestamp();
             }
         }
         spdlog::trace("\t\t\tServer #{} this iteration: bytes processed: {} | Busytime this iteration: {}", server_no, bytesProcessedInDelta, (bytesProcessedInDelta*1.0)/(alpha*1.0));
@@ -455,7 +466,7 @@ void printStatistics(Server *servers[], int server_count, double time){
     ifstream infile(serverStats);
     if(!infile.good()){
         outputFile.open(serverStats);
-        outputFile << "Time" << "," << "Server_no" << ","  << "Pending_Requests" << "," << "Pending_req_size"<<","<<"Processed Requests"<<","<<"Processed req size"<<","<<"Utilization"<<","<<"Busy Time"<<","<<"Average Service Rate"<<","<<"Average # requests in system"<<endl;
+        outputFile << "Time" << "," << "Server_no" << ","  << "Pending_Requests" << "," << "Pending_req_size"<<","<<"Processed Requests"<<","<<"Processed req size"<<","<<"Utilization"<<","<<"Busy Time"<<","<<"Average Service Rate"<<","<<"Average # requests in system"<<","<<"Average Response Time"<<endl;
         outputFile.close();
         outputFile.open(overallStats);
         outputFile << "Time" << "," << "Total_reqs_processed" << ","  << "Avg_utilization" << "," << "total_bytes_processed"<<","<<"total_pending_reqs"<<","<<"total_pending_respSize"<<","<<"Consolidated average # requests in system"<<endl;
@@ -476,6 +487,7 @@ void printStatistics(Server *servers[], int server_count, double time){
         double busyTime = (*servers[i]).getTotalBusyTime();
         double averageServiceRate = (*servers[i]).getAverageServiceRate();
         long cumulativePendingCount = (*servers[i]).getCumulativePendingCount();
+        double avgRespTime = (*servers[i]).getAvgRespTime();
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
         totalPendingRespSize += pendingReqsSize;
@@ -493,7 +505,8 @@ void printStatistics(Server *servers[], int server_count, double time){
         spdlog::info("\t\t Busy time: {}", busyTime); 
         spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
         spdlog::info("\t\t Average number of requests in the system: {}", (cumulativePendingCount*1.0)/(time*1.0));
-        outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<numProcessedRequests<<","<<bytesProcessed<<","<<utilization<<","<<busyTime<<","<<averageServiceRate<<","<<(cumulativePendingCount*1.0)/(time*1.0)<<endl;
+        spdlog::info("\t\t Average Response Time: {}", avgRespTime);
+        outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<numProcessedRequests<<","<<bytesProcessed<<","<<utilization<<","<<busyTime<<","<<averageServiceRate<<","<<(cumulativePendingCount*1.0)/(time*1.0)<<","<<avgRespTime<<endl;
     }
     cout << endl;
     outputFile.close();
@@ -517,7 +530,6 @@ int main(int argc, char **argv)
     double snapshotInterval = 10.0;     // Percentage value
     double snapshotTime = ((snapshotInterval/100) *maxSimulationTime);
     double checkTime = snapshotTime;
-    int reqId = 0;
     // Delete stat files
     if(remove(serverStats) != 0){
         spdlog::error("Couldn't delete server stat file");
@@ -541,7 +553,8 @@ int main(int argc, char **argv)
     spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (time < maxSimulationTime)
     {
-        int t = 0, nextTimeDelta = (int)p.generate();
+        int t = 0;
+        int nextTimeDelta = (int)p.generate();
         spdlog::trace("\tTime elapsed {} time units", time);
         spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
         Request request = Request(time, 1, -1);
