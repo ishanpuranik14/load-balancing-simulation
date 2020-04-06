@@ -100,11 +100,11 @@ public:
 
 class Server
 {
-    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed, cumulativePendingCount, totalFullyProcessedBytes;
+    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, totalFullyProcessedBytes;
     int server_no;
     std::queue<Request> reqQueue, processedReqQueue;
     std::queue<pair<int, Request>> deferredRequests;
-    double avgRespSize, utilization, totalBusyTime, avgRespTime, totalRespTime, totalWaitingTime;
+    double avgRespSize, utilization, totalBusyTime, totalRespTime, totalWaitingTime;
 
 public:
     Server(long alpha, int server_no)
@@ -118,6 +118,8 @@ public:
         totalBusyTime = 0.0;
         totalRespTime = 0.0;
         totalFullyProcessedBytes = 0.0;
+        totalWaitingTime = 0.0;
+        avgRespSize = 0.0;
         this->alpha = alpha;
         this->server_no = server_no;
         spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
