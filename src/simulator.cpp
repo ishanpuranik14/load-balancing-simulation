@@ -1,5 +1,6 @@
 #include <cstdio>
 #include "Poisson.h"
+#include "Uniform.h"
 #include "Generator.h"
 #include <bits/stdc++.h>
 #include "spdlog/spdlog.h"
@@ -18,7 +19,7 @@ class Request
 {
     int timestamp;
     int forwardingTimestamp;
-    int finishedTimestamp;
+    double finishedTimestamp;
     int reqSize;
     int respSize; // bytes
     int pendingSize;
@@ -86,12 +87,12 @@ public:
         this->forwardingTimestamp = forwardingTimestamp;
     }
 
-    int getFinishedTimestamp()
+    double getFinishedTimestamp()
     {
         return finishedTimestamp;
     }
 
-    void updateFinishedTimestamp(int finishedTimestamp)
+    void updateFinishedTimestamp(double finishedTimestamp)
     {
         this->finishedTimestamp = finishedTimestamp;
     }
@@ -99,11 +100,11 @@ public:
 
 class Server
 {
-    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed, cumulativePendingCount, totalRespTime;
+    long alpha, totalRespSize, totalReqs, totalRespBytesProcessed, totalReqsProcessed, cumulativePendingCount, totalFullyProcessedBytes;
     int server_no;
     std::queue<Request> reqQueue, processedReqQueue;
     std::queue<pair<int, Request>> deferredRequests;
-    double avgRespSize, utilization, totalBusyTime, avgRespTime;
+    double avgRespSize, utilization, totalBusyTime, avgRespTime, totalRespTime, totalWaitingTime;
 
 public:
     Server(long alpha, int server_no)
@@ -115,7 +116,8 @@ public:
         cumulativePendingCount = 0;
         utilization = 0.0;
         totalBusyTime = 0.0;
-        totalRespTime = 0;
+        totalRespTime = 0.0;
+        totalFullyProcessedBytes = 0.0;
         this->alpha = alpha;
         this->server_no = server_no;
         spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
@@ -136,9 +138,13 @@ public:
         return alpha;
     }
 
-    double calculateUtilization()
+    double calculateUtilization(double timeElapsed)
     {
-        return double((getPendingRequestSize()*1.0)/double(alpha));
+        return totalFullyProcessedBytes / (alpha * timeElapsed);
+    }
+
+    double getTotalWaitingTime() {
+        return totalWaitingTime;
     }
 
     double getUtilization()
@@ -195,23 +201,15 @@ public:
     }
 
     double getAvgRespTime() {
-        return ((double) totalRespTime) / processedReqQueue.size();
+        return totalRespTime / processedReqQueue.size();
     }
 
     long getNumProcessedRequests()
     {
-        if (!reqQueue.empty())
-        {
-            Request &top = reqQueue.front();
-            if (top.getPendingSize() != top.getRespSize())
-            {
-                return processedReqQueue.size();
-            }
-        }
         return processedReqQueue.size();
     }
 
-    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count)
+    bool whenPolicy(int policyNum, double currentTime, int timeDelta, Server *servers[], int server_count)
     {
         /*
         Use the when policy to determine whether to forward any request(s)
@@ -225,7 +223,7 @@ public:
             break;
         case 0:
             // Using utilization
-            this->utilization = calculateUtilization();
+            this->utilization = calculateUtilization(currentTime);
             spdlog::trace("\t\t\t\tServer #{} | utilization: {} | threshold: {}", server_no, utilization, policy_0_threshold);
             if(this->utilization > policy_0_threshold){
                 time_to_forward = true;
@@ -393,7 +391,7 @@ public:
         int what_policy = 0;  // Use this to control the what policy
         int where_policy = 0; // Use this to control the where policy
         spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
-        while (whenPolicy(when_policy, timeDelta, servers, server_count))
+        while (whenPolicy(when_policy, currentTime, timeDelta, servers, server_count))
         {
             int num_requests_forwarded = 0;
             spdlog::trace("\t\tServer #{} will execute the what policy", server_no);
@@ -429,6 +427,9 @@ public:
         {
             Request &cur = reqQueue.front();
             int pendingSize = cur.getPendingSize();
+            if (pendingSize == cur.getRespSize()) {
+                totalWaitingTime += currentTime - cur.getTimestamp() + ((double)bytesProcessedInDelta) / maxBytes;
+            }
             if (pendingSize > maxBytes)
             {
                 // update
@@ -441,19 +442,28 @@ public:
             else
             {
                 // update
+                double timestamp = currentTime + (pendingSize * 1.0) / maxBytes;
+                maxBytes -= pendingSize;
                 cur.updatePendingSize(pendingSize);
                 spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no, (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
                 reqQueue.pop();
-                cur.updateFinishedTimestamp(currentTime);
+
+                cur.updateFinishedTimestamp(timestamp); // +1 because it finishes at the end of current time unit
                 processedReqQueue.push(cur);
-                maxBytes -= pendingSize;
+                totalFullyProcessedBytes += cur.getRespSize();
                 totalRespBytesProcessed += pendingSize;
                 bytesProcessedInDelta += pendingSize;
                 totalRespTime += cur.getFinishedTimestamp() - cur.getTimestamp();
+                spdlog::trace("\t\tRequest Id {} started at {} finished at {}, diff = {}", cur.getReqId(), cur.getTimestamp(), cur.getFinishedTimestamp(), cur.getFinishedTimestamp()-cur.getTimestamp());
             }
         }
         spdlog::trace("\t\t\tServer #{} this iteration: bytes processed: {} | Busytime this iteration: {}", server_no, bytesProcessedInDelta, (bytesProcessedInDelta*1.0)/(alpha*1.0));
         totalBusyTime += (bytesProcessedInDelta*1.0)/(alpha*1.0);
+    }
+
+    double getPartiallyProcessedRequestCount() {
+        Request &r = reqQueue.front();
+        return r.getPendingSize() < r.getRespSize() ? 1 : 0;
     }
 };
 
@@ -483,11 +493,13 @@ void printStatistics(Server *servers[], int server_count, double time){
         long pendingReqsSize = (*servers[i]).getPendingRequestSize();
         long bytesProcessed = (*servers[i]).getTotalProcessedBytes();
         long numProcessedRequests = (*servers[i]).getNumProcessedRequests();
-        double utilization =  (*servers[i]).calculateUtilization();
+        double utilization =  (*servers[i]).calculateUtilization(time);
         double busyTime = (*servers[i]).getTotalBusyTime();
         double averageServiceRate = (*servers[i]).getAverageServiceRate();
         long cumulativePendingCount = (*servers[i]).getCumulativePendingCount();
         double avgRespTime = (*servers[i]).getAvgRespTime();
+        double numPartiallyProcessedRequests = (*servers[i]).getPartiallyProcessedRequestCount();
+        double avgWaitingTime = (*servers[i]).getTotalWaitingTime() / (numProcessedRequests + numPartiallyProcessedRequests);
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
         totalPendingRespSize += pendingReqsSize;
@@ -496,16 +508,18 @@ void printStatistics(Server *servers[], int server_count, double time){
         totalUtilization += utilization;
         consolidatedCumulativePendingCount += cumulativePendingCount;
         // Print out
+        spdlog::info("\tTime: {}", time);
         spdlog::info("\tServer #{}", i);
-        spdlog::info("\t\t # of requests processed (even partial) : {}", numProcessedRequests);
+        spdlog::info("\t\t # of requests processed : {}", numProcessedRequests);
         spdlog::info("\t\t Size of processed responses : {} bytes", bytesProcessed);
         spdlog::info("\t\t # of pending requests : {}", pendingReqsCount);
         spdlog::info("\t\t Size of pending responses : {} bytes", pendingReqsSize);
-        spdlog::info("\t\t Utilization : {} bytes", utilization);
+        spdlog::info("\t\t Utilization : {} ", utilization);
         spdlog::info("\t\t Busy time: {}", busyTime); 
         spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
-        spdlog::info("\t\t Average number of requests in the system: {}", (cumulativePendingCount*1.0)/(time*1.0));
+        spdlog::info("\t\t Average number of requests in the system: {}", (cumulativePendingCount * 1.0)/(time * 1.0));
         spdlog::info("\t\t Average Response Time: {}", avgRespTime);
+        spdlog::info("\t\t Average Waiting Time: {}", avgWaitingTime);
         outputFile << time << "," << i << ","  << pendingReqsCount << "," << pendingReqsSize<<","<<numProcessedRequests<<","<<bytesProcessed<<","<<utilization<<","<<busyTime<<","<<averageServiceRate<<","<<(cumulativePendingCount*1.0)/(time*1.0)<<","<<avgRespTime<<endl;
     }
     cout << endl;
@@ -514,11 +528,11 @@ void printStatistics(Server *servers[], int server_count, double time){
     outputFile << time << "," << totalRequestsProcessed << ","  << totalUtilization/double(server_count) << "," << totalBytesProcessed<<","<<totalPendingReqsCount<<","<<totalPendingRespSize<<","<<(consolidatedCumulativePendingCount*1.0)/(time*1.0)<<endl;
     outputFile.close();
     spdlog::info("Cumulative");
-    spdlog::info("Total # of requests processed (even partial) : {}", totalRequestsProcessed);
+    spdlog::info("Total # of requests processed : {}", totalRequestsProcessed);
     spdlog::info("Total size of processed responses : {} bytes", totalBytesProcessed);
     spdlog::info("Total # of pending requests : {}", totalPendingReqsCount);
     spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
-    spdlog::info("Consolidated average number of requests in the system: {}", (consolidatedCumulativePendingCount*1.0)/(time*1.0));
+    spdlog::info("Consolidated average number of requests in the system: {} / {} = {}", consolidatedCumulativePendingCount, time, (consolidatedCumulativePendingCount*1.0)/time);
 }
 
 int main(int argc, char **argv)
@@ -555,14 +569,17 @@ int main(int argc, char **argv)
     {
         int t = 0;
         int nextTimeDelta = (int)p.generate();
-        spdlog::trace("\tTime elapsed {} time units", time);
-        spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
-        Request request = Request(time, 1, -1);
-        spdlog::trace("\tCreated the current request with ID: {}", request.getReqId());
-        spdlog::trace("\tCurrent response size = {}", request.getRespSize());
-        int nextServer = rand() % server_count;
-        spdlog::trace("\tMapping the request on to server #{}", nextServer);
-        (*servers[nextServer]).addRequest(request);
+        if (time != 0) {
+            spdlog::trace("----------------------------------------");
+            spdlog::trace("\tTime elapsed {} time units", time);
+            spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
+            Request request = Request(time, 1, -1);
+            spdlog::trace("\tCreated the current request with ID: {}", request.getReqId());
+            spdlog::trace("\tCurrent response size = {}", request.getRespSize());
+            int nextServer = rand() % server_count;
+            spdlog::trace("\tMapping the request on to server #{}", nextServer);
+            (*servers[nextServer]).addRequest(request);
+        }
         while ((t++ < nextTimeDelta) && (time < maxSimulationTime))
         {
             spdlog::trace("\t\tTime elapsed {} time units", time);
@@ -579,8 +596,8 @@ int main(int argc, char **argv)
             // Process the requests on each server till the next request comes in
             for (int i = 0; i < server_count; i++)
             {
-                (*servers[i]).updatePendingCount();
                 (*servers[i]).processData(time, 1, servers, server_count);
+                (*servers[i]).updatePendingCount();
             }
             time++;
             if (time == checkTime) {
