@@ -4,49 +4,45 @@
 #include <bits/stdc++.h>
 #include <spdlog/spdlog.h>
 #include "Request.h"
+#include "Stats.h"
 
 class Server {
+    long totalFullyProcessedBytes;
     long alpha;
     int server_no;
-    double avgRespSize, utilization;
 
+    double avgRespSize, utilization;
     std::queue<Request> reqQueue, processedReqQueue;
+
     std::queue<std::pair<int, Request>> deferredRequests;
+    Stats stats;
+
+    long totalReqs;
+    long totalRespSize;
 
 public:
-    Server(long alpha, int server_no);
+
+    Server(long alpha, int server_no, double startStatCollectionFrom);
 
     std::queue<Request> getReqQueue();
+
+    Stats &getStats();
 
     std::queue<Request> getProcessedReqQueue();
 
     long getAlpha();
 
-    double getTotalWaitingTime();
-
     double getUtilization();
-
-    double getTotalBusyTime();
 
     long getPendingRequestCount();
 
     long getPendingRequestSize();
-
-    long getCumulativePendingCount();
 
     double calculateUtilization();
 
     void addRequest(Request request);
 
     void updatePendingCount();
-
-    long getTotalProcessedBytes();
-
-    double getAverageServiceRate();
-
-    double getAvgRespTime();
-
-    long getNumProcessedRequests();
 
     bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 

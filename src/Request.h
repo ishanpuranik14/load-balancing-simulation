@@ -1,10 +1,10 @@
 #ifndef LOAD_BALANCING_SIMULATION_REQUEST_H
 #define LOAD_BALANCING_SIMULATION_REQUEST_H
-long reqIdGen = 0;
+extern long reqIdGen;
 
 class Request {
     int timestamp;
-    int forwardingTimestamp;
+    long forwardingTimestamp;
     double finishedTimestamp;
     int reqSize;
     int respSize; // bytes
@@ -17,7 +17,7 @@ public:
 
     Request(int timestamp, int reqSize, int sentBy);
 
-    int getReqId();
+    long getReqId();
 
     int getRespSize();
 
@@ -31,9 +31,9 @@ public:
 
     void updateSentBy(int resentBy);
 
-    int getForwardingTimestamp();
+    long getForwardingTimestamp();
 
-    void updateForwardingTimestamp(int forwardingTimestamp);
+    void updateForwardingTimestamp(long forwardingTimestamp);
 
     double getFinishedTimestamp();
 

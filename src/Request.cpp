@@ -1,21 +1,25 @@
 #include <bits/stdc++.h>
 #include "Request.h"
 
+long reqIdGen = 0;
+
 Request::Request(int timestamp, int reqSize, int sentBy) {
     reqId = reqIdGen++;
     this->timestamp = timestamp;
     this->reqSize = reqSize;
-    respSize = (int)floor(generate_random_number(200, 500));
+    respSize = 200;//(int) floor(generate_random_number(200, 500));
     pendingSize = respSize;
     this->sentBy = sentBy;
+    forwardingTimestamp = 0;
+    finishedTimestamp = 0;
 }
 
 double Request::generate_random_number(double low, double high) {
     int random_value = rand();
-    return (low+(static_cast<double>(random_value)/(static_cast<double>(RAND_MAX/(high-low)))));
+    return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
 }
 
-int Request::getReqId() {
+long Request::getReqId() {
     return reqId;
 }
 
@@ -43,11 +47,11 @@ void Request::updateSentBy(int resentBy) {
     sentBy = resentBy;
 }
 
-int Request::getForwardingTimestamp() {
+long Request::getForwardingTimestamp() {
     return forwardingTimestamp;
 }
 
-void Request::updateForwardingTimestamp(int forwardingTime) {
+void Request::updateForwardingTimestamp(long forwardingTime) {
     this->forwardingTimestamp = forwardingTime;
 }
 

@@ -3,11 +3,7 @@
 
 #include <bits/stdc++.h>
 #include "Request.h"
-#include "Server.h"
 #include <cstdio>
-
-char const *serverStats = "serverStats.csv";
-char const *overallStats = "overallStats.csv";
 
 class Stats {
     long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, totalFullyProcessedBytes;
@@ -15,15 +11,12 @@ class Stats {
     double avgRespSize, utilization, totalRespTime, totalWaitingTime;
     double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
     double statStartTime;
-    std::ofstream outputFile;
-    std::queue<Request> processedReqQueueForStats;
+    std::queue<Request> reqQueue, processedReqQueueForStats;
 
 public:
     Stats(double startCollectingAt);
 
     bool shouldCollectStats();
-
-    void printStatistics(Server *servers[], int server_count, double time);
 
     long getTotalRespSize() const;
 
@@ -64,6 +57,24 @@ public:
     double getTotalBusyTime() const;
 
     void setTotalBusyTime(double totalBusyTime);
+
+    double getAverageServiceRate();
+
+    double getAvgRespTime();
+
+    long getNumProcessedRequests();
+
+    std::queue<Request> &getProcessedReqQueueForStats();
+
+    double calculateUtilization(long i);
+
+    void addRequest(Request request);
+
+    void removeRequest(Request request);
+
+    long getPendingRequestSize();
+
+    long getPendingReqCount();
 };
 
 #endif //LOAD_BALANCING_SIMULATION_STATS_H
