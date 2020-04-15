@@ -18,6 +18,14 @@ Stats::Stats(double startCollectingAt) {
     statStartTime = startCollectingAt;
 }
 
+void Stats:: pushProcessedReqQueueForStats(Request cur){
+    if(shouldCollectStats()){
+        getProcessedReqQueueForStats().push(cur);
+    }
+}
+double Stats:: getStatStartTime(){
+    return statStartTime;
+}
 long Stats::getTotalRespSize() const {
     return totalRespSize;
 }
@@ -129,7 +137,11 @@ queue<Request> &Stats::getProcessedReqQueueForStats() {
 }
 
 double Stats::calculateUtilization(long alpha) {
-    return (double) totalFullyProcessedBytes / (alpha * currentTime);
+    if(currentTime != statStartTime){
+        return (double) totalFullyProcessedBytes / (alpha * (currentTime - statStartTime));
+    } else {
+        return 0;
+    }
 }
 
 void Stats::addRequest(Request request) {
@@ -170,3 +182,8 @@ long Stats::getPendingReqCount() {
     long numRequests = reqQueue.size();
     return numRequests;
 }
+
+ void Stats::popRequest(){
+     if(shouldCollectStats())
+        this->reqQueue.pop();
+ }

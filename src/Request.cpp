@@ -7,7 +7,7 @@ Request::Request(int timestamp, int reqSize, int sentBy) {
     reqId = reqIdGen++;
     this->timestamp = timestamp;
     this->reqSize = reqSize;
-    respSize = 200;//(int) floor(generate_random_number(200, 500));
+    respSize = 50;//(int) floor(generate_random_number(200, 500));
     pendingSize = respSize;
     this->sentBy = sentBy;
     forwardingTimestamp = 0;

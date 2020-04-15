@@ -289,15 +289,16 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
             double timestamp = currentTime + (pendingSize * 1.0) / maxBytes;
             maxBytes -= pendingSize;
             cur.updatePendingSize(pendingSize);
-            spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no,
+            spdlog::trace("\t\t\t Else conditon: Going to pop!! Server #{} processed {} / {} bytes of response for request #{}", server_no,
                           (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
             reqQueue.pop();
+            stats.popRequest();
             bytesProcessedInDelta += pendingSize;
             cur.updateFinishedTimestamp(timestamp); // +1 because it finishes at the end of current time unit
             processedReqQueue.push(cur);
             totalFullyProcessedBytes += cur.getRespSize();
 
-            stats.getProcessedReqQueueForStats().push(cur);
+            stats.pushProcessedReqQueueForStats(cur);
             stats.setTotalFullyProcessedBytes(stats.getTotalFullyProcessedBytes() + cur.getRespSize());
             stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + pendingSize);
             stats.setTotalRespTime(stats.getTotalRespTime() + cur.getFinishedTimestamp() - cur.getTimestamp());

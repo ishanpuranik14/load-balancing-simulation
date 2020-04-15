@@ -14,7 +14,12 @@ class Stats {
     std::queue<Request> reqQueue, processedReqQueueForStats;
 
 public:
+
     Stats(double startCollectingAt);
+
+    void pushProcessedReqQueueForStats(Request cur);
+
+    double getStatStartTime();
 
     bool shouldCollectStats();
 
@@ -75,6 +80,8 @@ public:
     long getPendingRequestSize();
 
     long getPendingReqCount();
+
+    void popRequest();
 };
 
 #endif //LOAD_BALANCING_SIMULATION_STATS_H
