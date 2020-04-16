@@ -165,10 +165,6 @@ int main(int argc, char **argv) {
                 checkTime += snapshotTime;
             }
         }
-        if (currentTime == checkTime) {
-                printStatistics(servers, server_count, currentTime);
-                checkTime += snapshotTime;
-            }
     }
     spdlog::trace("----SIMULATION ENDS----");
     cout << endl;
