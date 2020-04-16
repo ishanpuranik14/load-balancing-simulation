@@ -2,35 +2,23 @@
 #include "Uniform.h"
 #include "spdlog/spdlog.h"
 
-Uniform::Uniform(double mean) : Generator() {
-    this->mean = mean;
-    spdlog::info("Using Uniform distribution with lambda: {}\n", mean);
+
+Uniform::Uniform(double iat, int lambda=1): Generator(){
+    this->iat = iat;
+    this->lambda = lambda;
+    this->counter = 0;
+    spdlog::info("Using Uniform distribution with lambda: {} and IAT: {}\n", lambda, iat);
 }
 
-Uniform::Uniform(double mean, int currentRequests){
-    this->mean = mean;
-    this-> currentRequests = currentRequests;
-    spdlog::info("Using Uniform distribution with lambda: {}\n", currentRequests);
-}
-
-double Uniform::generate() {
-    return this->mean;
-}
-
-double Uniform::generate(int numRequests){
-    if(this->currentRequests>0 && this->currentRequests!=numRequests){
-        this->currentRequests-=1;
-        std::cout <<"from uniform"<< 0<<"\n";
-        return 0;
+double Uniform::generate(int numRequests=1){
+    /*
+    first, returns IAT, then for every IAT returns numRequests-1 0s
+    */
+    int current_iat = iat;
+    if(counter){
+        current_iat = 0;
     }
-    else{
-        if(this->currentRequests==numRequests){
-            this->currentRequests-=1;
-        }
-        else{
-        this->currentRequests = numRequests;
-        }
-        std::cout<<"from uniform "<<this->mean<<"\n";
-        return this->mean;
-    }
+    counter = (counter+1)%numRequests;
+    spdlog::trace("Next request in : {} time units\n", current_iat);
+    return current_iat;
 }

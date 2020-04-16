@@ -5,13 +5,12 @@
 
 class Uniform : public Generator {
 private:
-    double mean;
+    double iat;
     int numRequests;
-    int currentRequests;
+    int lambda;
+    int counter;
 public:
-    explicit Uniform(double mean);
-    explicit Uniform(double mean,int currentRequests);
-    double generate();
+    explicit Uniform(double iat,int lambda);
     double generate(int numRequests);
 };
 
