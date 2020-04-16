@@ -7,22 +7,22 @@
 #include "Stats.h"
 
 class Server {
-    long totalFullyProcessedBytes;
-    long alpha;
+    long long totalFullyProcessedBytes;
+    long long alpha;
     int server_no;
 
-    double avgRespSize, utilization;
+    long double avgRespSize, utilization;
     std::queue<Request> reqQueue, processedReqQueue;
 
     std::queue<std::pair<int, Request>> deferredRequests;
     Stats stats;
 
-    long totalReqs;
-    long totalRespSize;
+    long long totalReqs;
+    long long totalRespSize;
 
 public:
 
-    Server(long alpha, int server_no, double startStatCollectionFrom);
+    Server(long long alpha, int server_no, long double startStatCollectionFrom);
 
     std::queue<Request> getReqQueue();
 
@@ -30,15 +30,15 @@ public:
 
     std::queue<Request> getProcessedReqQueue();
 
-    long getAlpha();
+    long long getAlpha();
 
-    double getUtilization();
+    long double getUtilization();
 
-    long getPendingRequestCount();
+    long long getPendingRequestCount();
 
-    long getPendingRequestSize();
+    long long getPendingRequestSize();
 
-    double calculateUtilization();
+    long double calculateUtilization();
 
     void addRequest(Request request);
 

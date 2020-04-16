@@ -15,7 +15,7 @@ char const *serverStatsFileName = "serverStats.csv";
 char const *overallStats = "overallStats.csv";
 std::ofstream outputFile;
 
-void printStatistics(Server *servers[], int server_count, double time) {
+void printStatistics(Server *servers[], int server_count, long double time) {
     spdlog::info("");
     spdlog::info("----STATISTICS----");
     spdlog::info("");
@@ -37,23 +37,23 @@ void printStatistics(Server *servers[], int server_count, double time) {
     }
     outputFile.open(serverStatsFileName, std::ios_base::app);
 
-    long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0;
-    double totalUtilization = 0.0, startTime = 0.0;
+    long long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0;
+    long double totalUtilization = 0.0, startTime = 0.0;
     for (int i = 0; i < server_count; i++) {
         Server &server = *servers[i];
         Stats &serverStats = server.getStats();
 
-        long pendingReqsCount = serverStats.getPendingReqCount();
-        long pendingReqsSize = serverStats.getPendingRequestSize();
-        long bytesProcessed = serverStats.getTotalRespBytesProcessed();
-        long numProcessedRequests = serverStats.getNumProcessedRequests();
-        double serverUtilization = serverStats.calculateUtilization(server.getAlpha());
-        double busyTime = serverStats.getTotalBusyTime();
-        double averageServiceRate = serverStats.getAverageServiceRate();
-        long serverCumulativePendingCount = serverStats.getCumulativePendingCount();
-        double avgRespTime = serverStats.getAvgRespTime();
-        double numPartiallyProcessedRequests = server.getPartiallyProcessedRequestCount();
-        double avgWaitingTime =
+        long long pendingReqsCount = serverStats.getPendingReqCount();
+        long long pendingReqsSize = serverStats.getPendingRequestSize();
+        long long bytesProcessed = serverStats.getTotalRespBytesProcessed();
+        long long numProcessedRequests = serverStats.getNumProcessedRequests();
+        long double serverUtilization = serverStats.calculateUtilization(server.getAlpha());
+        long double busyTime = serverStats.getTotalBusyTime();
+        long double averageServiceRate = serverStats.getAverageServiceRate();
+        long long serverCumulativePendingCount = serverStats.getCumulativePendingCount();
+        long double avgRespTime = serverStats.getAvgRespTime();
+        long double numPartiallyProcessedRequests = server.getPartiallyProcessedRequestCount();
+        long double avgWaitingTime =
                 serverStats.getTotalWaitingTime() / (numProcessedRequests + numPartiallyProcessedRequests);
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
@@ -74,13 +74,13 @@ void printStatistics(Server *servers[], int server_count, double time) {
         spdlog::info("\t\t Busy time: {}", busyTime);
         spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
         spdlog::info("\t\t Average number of requests in the system: {}",
-                     (serverCumulativePendingCount * 1.0) / ((time - serverStats.getStatStartTime()) * 1.0));
+                     ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()));
         spdlog::info("\t\t Average Response Time: {}", avgRespTime);
         spdlog::info("\t\t Average Waiting Time: {}", avgWaitingTime);
         outputFile << time << "," << i << "," << pendingReqsCount << "," << pendingReqsSize << ","
                    << numProcessedRequests << "," << bytesProcessed << "," << serverUtilization << "," << busyTime
                    << ","
-                   << averageServiceRate << "," << (serverCumulativePendingCount * 1.0) / ((time - serverStats.getStatStartTime()) * 1.0) << ","
+                   << averageServiceRate << "," << ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()) << ","
                    << avgRespTime << endl;
     }
     cout << endl;
@@ -88,7 +88,7 @@ void printStatistics(Server *servers[], int server_count, double time) {
     outputFile.open(overallStats, std::ios_base::app);
     outputFile << time << "," << totalRequestsProcessed << "," << totalUtilization / double(server_count) << ","
                << totalBytesProcessed << "," << totalPendingReqsCount << "," << totalPendingRespSize << ","
-               << (consolidatedCumulativePendingCount * 1.0) / ((time - startTime) * 1.0) << endl;
+               << ((long double)consolidatedCumulativePendingCount) / (time - startTime) << endl;
     outputFile.close();
     spdlog::info("Cumulative");
     spdlog::info("Total # of requests processed : {}", totalRequestsProcessed);
@@ -96,16 +96,16 @@ void printStatistics(Server *servers[], int server_count, double time) {
     spdlog::info("Total # of pending requests : {}", totalPendingReqsCount);
     spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
     spdlog::info("Consolidated average number of requests in the system: {} / {} = {}",
-                 consolidatedCumulativePendingCount, time, (consolidatedCumulativePendingCount * 1.0) / ((time - startTime) * 1.0));
+                 consolidatedCumulativePendingCount, time, ((long double)consolidatedCumulativePendingCount) / (time - startTime));
 }
 
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     // Initializations
-    double maxSimulationTime = 100;
-    double snapshotInterval = 10;     // Percentage value
-    double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
-    double checkTime = snapshotTime;
+    long double maxSimulationTime = 100;
+    long double snapshotInterval = 10;     // Percentage value
+    long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
+    long double checkTime = snapshotTime;
     // Delete stat file
     if (remove(serverStatsFileName) != 0) {
         spdlog::error("Couldn't delete server stat file");
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
         spdlog::error("Couldn't delete server stat file");
     }
     const int server_count = 1;
-    int alpha[server_count] = {20000};
+    long long alpha[server_count] = {20000};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);

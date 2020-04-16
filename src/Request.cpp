@@ -1,11 +1,12 @@
 #include <bits/stdc++.h>
 #include "Request.h"
 
-long reqIdGen = 0;
+long long reqIdGen = 0;
 
-Request::Request(int timestamp, int reqSize, int sentBy) {
+Request::Request(long double timestamp, int reqSize, int sentBy) {
     reqId = reqIdGen++;
     this->timestamp = timestamp;
+    std::cout<<"Request: "<<reqId<<" | Start timestamp : "<< this->timestamp<<"\n";
     this->reqSize = reqSize;
     respSize = 100;//(int) floor(generate_random_number(200, 500));
     pendingSize = respSize;
@@ -19,7 +20,7 @@ double Request::generate_random_number(double low, double high) {
     return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
 }
 
-long Request::getReqId() {
+long long Request::getReqId() {
     return reqId;
 }
 
@@ -27,15 +28,15 @@ int Request::getRespSize() {
     return respSize;
 }
 
-int Request::getPendingSize() {
+long long  Request::getPendingSize() {
     return pendingSize;
 }
 
-int Request::getTimestamp() {
+long double Request::getTimestamp() {
     return timestamp;
 }
 
-void Request::updatePendingSize(int bytesProcessed) {
+void Request::updatePendingSize(long long  bytesProcessed) {
     pendingSize = pendingSize - bytesProcessed;
 }
 
@@ -47,18 +48,18 @@ void Request::updateSentBy(int resentBy) {
     sentBy = resentBy;
 }
 
-long Request::getForwardingTimestamp() {
+long double Request::getForwardingTimestamp() {
     return forwardingTimestamp;
 }
 
-void Request::updateForwardingTimestamp(long forwardingTime) {
+void Request::updateForwardingTimestamp(long double forwardingTime) {
     this->forwardingTimestamp = forwardingTime;
 }
 
-double Request::getFinishedTimestamp() {
+long double Request::getFinishedTimestamp() {
     return finishedTimestamp;
 }
 
-void Request::updateFinishedTimestamp(double finishedTime) {
+void Request::updateFinishedTimestamp(long double finishedTime) {
     this->finishedTimestamp = finishedTime;
 }

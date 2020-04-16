@@ -4,7 +4,7 @@
 
 using namespace std;
 
-Stats::Stats(double startCollectingAt) {
+Stats::Stats(long double startCollectingAt) {
     totalRespSize = 0;
     totalReqs = 0;
     totalRespBytesProcessed = 0;
@@ -23,95 +23,95 @@ void Stats:: pushProcessedReqQueueForStats(Request cur){
         getProcessedReqQueueForStats().push(cur);
     }
 }
-double Stats:: getStatStartTime(){
+long double Stats:: getStatStartTime(){
     return statStartTime;
 }
-long Stats::getTotalRespSize() const {
+long long Stats::getTotalRespSize() const {
     return totalRespSize;
 }
 
-void Stats::setTotalRespSize(long totalRespSize) {
+void Stats::setTotalRespSize(long long totalRespSize) {
     if (shouldCollectStats())
         Stats::totalRespSize = totalRespSize;
 }
 
-long Stats::getTotalReqs() const {
+long long Stats::getTotalReqs() const {
     return totalReqs;
 }
 
-void Stats::setTotalReqs(long totalReqs) {
+void Stats::setTotalReqs(long long totalReqs) {
     if (shouldCollectStats())
         Stats::totalReqs = totalReqs;
 }
 
-long Stats::getTotalRespBytesProcessed() const {
+long long Stats::getTotalRespBytesProcessed() const {
     return totalRespBytesProcessed;
 }
 
-void Stats::setTotalRespBytesProcessed(long totalRespBytesProcessed) {
+void Stats::setTotalRespBytesProcessed(long long totalRespBytesProcessed) {
     if (shouldCollectStats())
         Stats::totalRespBytesProcessed = totalRespBytesProcessed;
 }
 
-long Stats::getCumulativePendingCount() const {
+long long Stats::getCumulativePendingCount() const {
     return cumulativePendingCount;
 }
 
-void Stats::setCumulativePendingCount(long cumulativePendingCount) {
+void Stats::setCumulativePendingCount(long long cumulativePendingCount) {
     if (shouldCollectStats())
         Stats::cumulativePendingCount = cumulativePendingCount;
 }
 
-long Stats::getTotalFullyProcessedBytes() const {
+long long Stats::getTotalFullyProcessedBytes() const {
     return totalFullyProcessedBytes;
 }
 
-void Stats::setTotalFullyProcessedBytes(long totalFullyProcessedBytes) {
+void Stats::setTotalFullyProcessedBytes(long long totalFullyProcessedBytes) {
     if (shouldCollectStats())
         Stats::totalFullyProcessedBytes = totalFullyProcessedBytes;
 }
 
-double Stats::getAvgRespSize() const {
+long double Stats::getAvgRespSize() const {
     return avgRespSize;
 }
 
-void Stats::setAvgRespSize(double avgRespSize) {
+void Stats::setAvgRespSize(long double avgRespSize) {
     if (shouldCollectStats())
         Stats::avgRespSize = avgRespSize;
 }
 
-double Stats::getUtilization() const {
+long double Stats::getUtilization() const {
     return utilization;
 }
 
-void Stats::setUtilization(double utilization) {
+void Stats::setUtilization(long double utilization) {
     if (shouldCollectStats())
         Stats::utilization = utilization;
 }
 
-double Stats::getTotalRespTime() const {
+long double Stats::getTotalRespTime() const {
     return totalRespTime;
 }
 
-void Stats::setTotalRespTime(double totalRespTime) {
+void Stats::setTotalRespTime(long double totalRespTime) {
     if (shouldCollectStats())
         Stats::totalRespTime = totalRespTime;
 }
 
-double Stats::getTotalWaitingTime() const {
+long double Stats::getTotalWaitingTime() const {
     return totalWaitingTime;
 }
 
-void Stats::setTotalWaitingTime(double totalWaitingTime) {
+void Stats::setTotalWaitingTime(long double totalWaitingTime) {
     if (shouldCollectStats())
         Stats::totalWaitingTime = totalWaitingTime;
 }
 
-double Stats::getTotalBusyTime() const {
+long double Stats::getTotalBusyTime() const {
     return totalBusyTime;
 }
 
-void Stats::setTotalBusyTime(double totalBusyTime) {
+void Stats::setTotalBusyTime(long double totalBusyTime) {
     if (shouldCollectStats())
         Stats::totalBusyTime = totalBusyTime;
 }
@@ -120,25 +120,26 @@ bool Stats::shouldCollectStats() {
     return currentTime >= statStartTime;
 }
 
-double Stats::getAverageServiceRate() {
+long double Stats::getAverageServiceRate() {
     return processedReqQueueForStats.size() / totalBusyTime;
 }
 
-double Stats::getAvgRespTime() {
+long double Stats::getAvgRespTime() {
+    cout<<" size of processedReqQueueForStats: "<<processedReqQueueForStats.size()<<" | total resp time"<<totalRespTime<<endl;
     return totalRespTime / processedReqQueueForStats.size();
 }
 
-long Stats::getNumProcessedRequests() {
-    return static_cast<long>(processedReqQueueForStats.size());
+long long Stats::getNumProcessedRequests() {
+    return static_cast<long long>(processedReqQueueForStats.size());
 }
 
 queue<Request> &Stats::getProcessedReqQueueForStats() {
     return processedReqQueueForStats;
 }
 
-double Stats::calculateUtilization(long alpha) {
+long double Stats::calculateUtilization(long long alpha) {
     if(currentTime != statStartTime){
-        return (double) totalFullyProcessedBytes / (alpha * (currentTime - statStartTime));
+        return (long double) totalFullyProcessedBytes / (alpha * (currentTime - statStartTime));
     } else {
         return 0;
     }
@@ -166,9 +167,9 @@ void Stats::removeRequest(Request requestToBeRemoved) {
     }
 }
 
-long Stats::getPendingRequestSize() {
-    long numRequests = getPendingReqCount();
-    long pendingReqSize = 0;
+long long Stats::getPendingRequestSize() {
+    long long numRequests = getPendingReqCount();
+    long long pendingReqSize = 0;
     while (numRequests--) {
         Request &cur = reqQueue.front();
         pendingReqSize += cur.getPendingSize();
@@ -178,8 +179,8 @@ long Stats::getPendingRequestSize() {
     return pendingReqSize;
 }
 
-long Stats::getPendingReqCount() {
-    long numRequests = reqQueue.size();
+long long Stats::getPendingReqCount() {
+    long long numRequests = reqQueue.size();
     return numRequests;
 }
 

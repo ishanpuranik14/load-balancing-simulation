@@ -6,80 +6,80 @@
 #include <cstdio>
 
 class Stats {
-    long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, totalFullyProcessedBytes;
+    long long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, totalFullyProcessedBytes;
 
-    double avgRespSize, utilization, totalRespTime, totalWaitingTime;
-    double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
-    double statStartTime;
+    long double avgRespSize, utilization, totalRespTime, totalWaitingTime;
+    long double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
+    long double statStartTime;
     std::queue<Request> reqQueue, processedReqQueueForStats;
 
 public:
 
-    Stats(double startCollectingAt);
+    Stats(long double startCollectingAt);
 
     void pushProcessedReqQueueForStats(Request cur);
 
-    double getStatStartTime();
+    long double getStatStartTime();
 
     bool shouldCollectStats();
 
-    long getTotalRespSize() const;
+    long long getTotalRespSize() const;
 
-    void setTotalRespSize(long totalRespSize);
+    void setTotalRespSize(long long totalRespSize);
 
-    long getTotalReqs() const;
+    long long getTotalReqs() const;
 
-    void setTotalReqs(long totalReqs);
+    void setTotalReqs(long long totalReqs);
 
-    long getTotalRespBytesProcessed() const;
+    long long getTotalRespBytesProcessed() const;
 
-    void setTotalRespBytesProcessed(long totalRespBytesProcessed);
+    void setTotalRespBytesProcessed(long long totalRespBytesProcessed);
 
-    long getCumulativePendingCount() const;
+    long long getCumulativePendingCount() const;
 
-    void setCumulativePendingCount(long cumulativePendingCount);
+    void setCumulativePendingCount(long long cumulativePendingCount);
 
-    long getTotalFullyProcessedBytes() const;
+    long long getTotalFullyProcessedBytes() const;
 
-    void setTotalFullyProcessedBytes(long totalFullyProcessedBytes);
+    void setTotalFullyProcessedBytes(long long totalFullyProcessedBytes);
 
-    double getAvgRespSize() const;
+    long double getAvgRespSize() const;
 
-    void setAvgRespSize(double avgRespSize);
+    void setAvgRespSize(long double avgRespSize);
 
-    double getUtilization() const;
+    long double getUtilization() const;
 
-    void setUtilization(double utilization);
+    void setUtilization(long double utilization);
 
-    double getTotalRespTime() const;
+    long double getTotalRespTime() const;
 
-    void setTotalRespTime(double totalRespTime);
+    void setTotalRespTime(long double totalRespTime);
 
-    double getTotalWaitingTime() const;
+    long double getTotalWaitingTime() const;
 
-    void setTotalWaitingTime(double totalWaitingTime);
+    void setTotalWaitingTime(long double totalWaitingTime);
 
-    double getTotalBusyTime() const;
+    long double getTotalBusyTime() const;
 
-    void setTotalBusyTime(double totalBusyTime);
+    void setTotalBusyTime(long double totalBusyTime);
 
-    double getAverageServiceRate();
+    long double getAverageServiceRate();
 
-    double getAvgRespTime();
+    long double getAvgRespTime();
 
-    long getNumProcessedRequests();
+    long long getNumProcessedRequests();
 
     std::queue<Request> &getProcessedReqQueueForStats();
 
-    double calculateUtilization(long i);
+    long double calculateUtilization(long long i);
 
     void addRequest(Request request);
 
     void removeRequest(Request request);
 
-    long getPendingRequestSize();
+    long long getPendingRequestSize();
 
-    long getPendingReqCount();
+    long long getPendingReqCount();
 
     void popRequest();
 };

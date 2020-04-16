@@ -1,1 +1,1 @@
-double currentTime = 0.0;
+long double currentTime = 0.0;

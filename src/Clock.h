@@ -6,7 +6,7 @@
 #define LOAD_BALANCING_SIMULATION_CLOCK_H
 
 
-extern double currentTime;
+extern long double currentTime;
 
 
 #endif //LOAD_BALANCING_SIMULATION_CLOCK_H
