@@ -102,7 +102,7 @@ void printStatistics(Server *servers[], int server_count, double time) {
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     // Initializations
-    double maxSimulationTime = 3;
+    double maxSimulationTime = 100;
     double snapshotInterval = 10;     // Percentage value
     double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
     double checkTime = snapshotTime;
@@ -114,13 +114,13 @@ int main(int argc, char **argv) {
         spdlog::error("Couldn't delete server stat file");
     }
     const int server_count = 1;
-    int alpha[server_count] = {100};
+    int alpha[server_count] = {20000};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
     spdlog::trace("Number of server: {}", server_count);
     //Poisson p = Poisson(0.25/4096);
-    Uniform p = Uniform(1,5);
+    Uniform p = Uniform(1,500);
     for (int i = 0; i < server_count; i++) {
         servers[i] = new Server(alpha[i], i, 0);
     }
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
     spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (currentTime < maxSimulationTime) {
         int t = 0;
-        int nextTimeDelta = (int) p.generate(5);
+        int nextTimeDelta = (int) p.generate(500);
         spdlog::trace("next request in time {}",nextTimeDelta);
         if (currentTime != 0) {
             spdlog::trace("----------------------------------------");
@@ -160,11 +160,15 @@ int main(int argc, char **argv) {
                 (*servers[i]).updatePendingCount();
             }
             currentTime++;
-            if (currentTime == currentTime) {
+            if (currentTime == checkTime) {
                 printStatistics(servers, server_count, currentTime);
                 checkTime += snapshotTime;
             }
         }
+        if (currentTime == checkTime) {
+                printStatistics(servers, server_count, currentTime);
+                checkTime += snapshotTime;
+            }
     }
     spdlog::trace("----SIMULATION ENDS----");
     cout << endl;
