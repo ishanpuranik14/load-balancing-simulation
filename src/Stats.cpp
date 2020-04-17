@@ -103,8 +103,9 @@ long double Stats::getTotalWaitingTime() const {
 }
 
 void Stats::setTotalWaitingTime(long double totalWaitingTime) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()){
         Stats::totalWaitingTime = totalWaitingTime;
+    }
 }
 
 long double Stats::getTotalBusyTime() const {
@@ -125,7 +126,6 @@ long double Stats::getAverageServiceRate() {
 }
 
 long double Stats::getAvgRespTime() {
-    cout<<" size of processedReqQueueForStats: "<<processedReqQueueForStats.size()<<" | total resp time"<<totalRespTime<<endl;
     return totalRespTime / processedReqQueueForStats.size();
 }
 

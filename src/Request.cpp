@@ -6,7 +6,6 @@ long long reqIdGen = 0;
 Request::Request(long double timestamp, int reqSize, int sentBy) {
     reqId = reqIdGen++;
     this->timestamp = timestamp;
-    std::cout<<"Request: "<<reqId<<" | Start timestamp : "<< this->timestamp<<"\n";
     this->reqSize = reqSize;
     respSize = 100;//(int) floor(generate_random_number(200, 500));
     pendingSize = respSize;

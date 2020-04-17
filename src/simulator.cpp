@@ -102,8 +102,8 @@ void printStatistics(Server *servers[], int server_count, long double time) {
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     // Initializations
-    long double maxSimulationTime = 100;
-    long double snapshotInterval = 10;     // Percentage value
+    long double maxSimulationTime = 3;
+    long double snapshotInterval = 1;     // Percentage value
     long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
     long double checkTime = snapshotTime;
     // Delete stat file
@@ -114,13 +114,13 @@ int main(int argc, char **argv) {
         spdlog::error("Couldn't delete server stat file");
     }
     const int server_count = 1;
-    long long alpha[server_count] = {20000};
+    long long alpha[server_count] = {200};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
     spdlog::trace("Number of server: {}", server_count);
     //Poisson p = Poisson(0.25/4096);
-    Uniform p = Uniform(1,500);
+    Uniform p = Uniform(1,5);
     for (int i = 0; i < server_count; i++) {
         servers[i] = new Server(alpha[i], i, 0);
     }
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
     spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (currentTime < maxSimulationTime) {
         int t = 0;
-        int nextTimeDelta = (int) p.generate(500);
+        int nextTimeDelta = (int) p.generate(5);
         spdlog::trace("next request in time {}",nextTimeDelta);
         if (currentTime != 0) {
             spdlog::trace("----------------------------------------");
