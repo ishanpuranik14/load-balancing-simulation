@@ -8,6 +8,7 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "Server.h"
 #include "Clock.h"
+#include "ConfigReader.h"
 
 using namespace std;
 
@@ -102,8 +103,35 @@ void printStatistics(Server *servers[], int server_count, long double time) {
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     // Initializations
-    long double maxSimulationTime = 3;
-    long double snapshotInterval = 1;     // Percentage value
+    ConfigReader* p = ConfigReader::getInstance();
+
+   // parse the configuration file
+    p->parseFile("config.txt");
+
+   // Dump map on the console after parsing it
+    p->dumpFileValues();
+
+   // Print divider on the console to understand the output properly
+    cout << endl << "=================================================" << endl << endl;
+
+   // Define variables to store the value
+    long double maxSimulationTime,snapshotInterval;
+    long long alpha1;
+    int respSize,lambda;
+   // Update the variable by the value present in the configuration file.
+    p->getValue("lambda", lambda);
+    p->getValue("alpha", alpha1 );
+    p->getValue("maxSimulationTime",maxSimulationTime);
+    p->getValue("respSize", respSize);
+    p->getValue("snapshotInterval",snapshotInterval);
+
+   // Variables has been updated. Now print it on the console.
+    cout << "lambda= " << lambda << endl;
+    cout << "alpha = " << alpha1 << endl;
+    cout << "max Simulation Time = " << maxSimulationTime << endl;
+    cout << "response size = " << respSize << endl;
+    cout << "snapshot Interval = " << snapshotInterval << endl;
+
     long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
     long double checkTime = snapshotTime;
     // Delete stat file
@@ -114,13 +142,13 @@ int main(int argc, char **argv) {
         spdlog::error("Couldn't delete server stat file");
     }
     const int server_count = 1;
-    long long alpha[server_count] = {200};
+    long long alpha[server_count] = {alpha1};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
     spdlog::trace("Number of server: {}", server_count);
     //Poisson p = Poisson(0.25/4096);
-    Uniform p = Uniform(1,5);
+    Uniform u = Uniform(1,lambda);
     for (int i = 0; i < server_count; i++) {
         servers[i] = new Server(alpha[i], i, 0);
     }
@@ -129,13 +157,13 @@ int main(int argc, char **argv) {
     spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (currentTime < maxSimulationTime) {
         int t = 0;
-        int nextTimeDelta = (int) p.generate(5);
+        int nextTimeDelta = (int) u.generate(lambda);
         spdlog::trace("next request in time {}",nextTimeDelta);
         if (currentTime != 0) {
             spdlog::trace("----------------------------------------");
             spdlog::trace("\tTime elapsed {} time units", currentTime);
             spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
-            Request request = Request(currentTime, 1, -1);
+            Request request = Request(currentTime, 1, -1,respSize);
             spdlog::trace("\tCreated the current request with ID: {}", request.getReqId());
             spdlog::trace("\tCurrent response size = {}", request.getRespSize());
             int nextServer = rand() % server_count;
@@ -160,7 +188,7 @@ int main(int argc, char **argv) {
                 (*servers[i]).updatePendingCount();
             }
             currentTime++;
-            if (currentTime == checkTime) {
+            if (currentTime == currentTime) {
                 printStatistics(servers, server_count, currentTime);
                 checkTime += snapshotTime;
             }

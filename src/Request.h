@@ -15,7 +15,7 @@ class Request {
 public:
     static double generate_random_number(double low, double high);
 
-    Request(long double timestamp, int reqSize, int sentBy);
+    Request(long double timestamp, int reqSize, int sentBy, int respSize);
 
     long long getReqId();
 

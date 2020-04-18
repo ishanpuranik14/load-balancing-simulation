@@ -1,13 +1,13 @@
 #include <bits/stdc++.h>
 #include "Request.h"
-
+#include "ConfigReader.h"
 long long reqIdGen = 0;
 
-Request::Request(long double timestamp, int reqSize, int sentBy) {
+Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
     reqId = reqIdGen++;
     this->timestamp = timestamp;
     this->reqSize = reqSize;
-    respSize = 100;//(int) floor(generate_random_number(200, 500));
+    this->respSize = respSize;//(int) floor(generate_random_number(200, 500));
     pendingSize = respSize;
     this->sentBy = sentBy;
     forwardingTimestamp = 0;
