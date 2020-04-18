@@ -111,26 +111,18 @@ int main(int argc, char **argv) {
    // Dump map on the console after parsing it
     p->dumpFileValues();
 
-   // Print divider on the console to understand the output properly
-    cout << endl << "=================================================" << endl << endl;
-
    // Define variables to store the value
     long double maxSimulationTime,snapshotInterval;
-    long long alpha1;
+    long long alp;
     int respSize,lambda;
    // Update the variable by the value present in the configuration file.
     p->getValue("lambda", lambda);
-    p->getValue("alpha", alpha1 );
+    p->getValue("alpha", alp );
     p->getValue("maxSimulationTime",maxSimulationTime);
     p->getValue("respSize", respSize);
     p->getValue("snapshotInterval",snapshotInterval);
 
    // Variables has been updated. Now print it on the console.
-    cout << "lambda= " << lambda << endl;
-    cout << "alpha = " << alpha1 << endl;
-    cout << "max Simulation Time = " << maxSimulationTime << endl;
-    cout << "response size = " << respSize << endl;
-    cout << "snapshot Interval = " << snapshotInterval << endl;
 
     long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
     long double checkTime = snapshotTime;
@@ -142,7 +134,7 @@ int main(int argc, char **argv) {
         spdlog::error("Couldn't delete server stat file");
     }
     const int server_count = 1;
-    long long alpha[server_count] = {alpha1};
+    long long alpha[server_count] = {alp};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
