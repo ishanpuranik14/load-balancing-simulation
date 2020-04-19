@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     p->getValue("respSize", respSize);
     p->getValue("snapshotInterval",snapshotInterval);
 
-   // Variables has been updated. Now print it on the console.
+    // TODO print config values nicely using spdlog
 
     long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
     long double checkTime = snapshotTime;
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
                 (*servers[i]).updatePendingCount();
             }
             currentTime++;
-            if (currentTime == currentTime) {
+            if (currentTime == checkTime) {
                 printStatistics(servers, server_count, currentTime);
                 checkTime += snapshotTime;
             }

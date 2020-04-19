@@ -1,4 +1,3 @@
-#include <bits/stdc++.h>
 #include "Stats.h"
 #include "Clock.h"
 
@@ -12,20 +11,24 @@ Stats::Stats(long double startCollectingAt) {
     utilization = 0.0;
     totalBusyTime = 0.0;
     totalRespTime = 0.0;
-    totalFullyProcessedBytes = 0.0;
     totalWaitingTime = 0.0;
     avgRespSize = 0.0;
+    pendingReqSize = 0;
+    processedReqCount = 0;
     statStartTime = startCollectingAt;
 }
 
-void Stats:: pushProcessedReqQueueForStats(Request cur){
-    if(shouldCollectStats()){
-        getProcessedReqQueueForStats().push(cur);
+void Stats::pushProcessedReqQueueForStats(Request cur) {
+    if (shouldCollectStats()) {
+//        processedReqQueueForStats.push(cur);
+        processedReqCount++;
     }
 }
-long double Stats:: getStatStartTime(){
+
+long double Stats::getStatStartTime() {
     return statStartTime;
 }
+
 long long Stats::getTotalRespSize() const {
     return totalRespSize;
 }
@@ -62,14 +65,6 @@ void Stats::setCumulativePendingCount(long long cumulativePendingCount) {
         Stats::cumulativePendingCount = cumulativePendingCount;
 }
 
-long long Stats::getTotalFullyProcessedBytes() const {
-    return totalFullyProcessedBytes;
-}
-
-void Stats::setTotalFullyProcessedBytes(long long totalFullyProcessedBytes) {
-    if (shouldCollectStats())
-        Stats::totalFullyProcessedBytes = totalFullyProcessedBytes;
-}
 
 long double Stats::getAvgRespSize() const {
     return avgRespSize;
@@ -103,7 +98,7 @@ long double Stats::getTotalWaitingTime() const {
 }
 
 void Stats::setTotalWaitingTime(long double totalWaitingTime) {
-    if (shouldCollectStats()){
+    if (shouldCollectStats()) {
         Stats::totalWaitingTime = totalWaitingTime;
     }
 }
@@ -122,24 +117,20 @@ bool Stats::shouldCollectStats() {
 }
 
 long double Stats::getAverageServiceRate() {
-    return processedReqQueueForStats.size() / totalBusyTime;
+    return processedReqCount / totalBusyTime;
 }
 
 long double Stats::getAvgRespTime() {
-    return totalRespTime / processedReqQueueForStats.size();
+    return totalRespTime / processedReqCount;
 }
 
 long long Stats::getNumProcessedRequests() {
-    return static_cast<long long>(processedReqQueueForStats.size());
-}
-
-queue<Request> &Stats::getProcessedReqQueueForStats() {
-    return processedReqQueueForStats;
+    return static_cast<long long>(processedReqCount);
 }
 
 long double Stats::calculateUtilization(long long alpha) {
-    if(currentTime != statStartTime){
-        return (long double) totalFullyProcessedBytes / (alpha * (currentTime - statStartTime));
+    if (currentTime != statStartTime) {
+        return (long double) totalRespBytesProcessed / (alpha * (currentTime - statStartTime));
     } else {
         return 0;
     }
@@ -168,15 +159,11 @@ void Stats::removeRequest(Request requestToBeRemoved) {
 }
 
 long long Stats::getPendingRequestSize() {
-    long long numRequests = getPendingReqCount();
-    long long pendingReqSize = 0;
-    while (numRequests--) {
-        Request &cur = reqQueue.front();
-        pendingReqSize += cur.getPendingSize();
-        reqQueue.pop();
-        reqQueue.push(cur);
-    }
     return pendingReqSize;
+}
+
+void Stats::setPendingRequestSize(long long i) {
+    pendingReqSize = i;
 }
 
 long long Stats::getPendingReqCount() {
@@ -184,7 +171,7 @@ long long Stats::getPendingReqCount() {
     return numRequests;
 }
 
- void Stats::popRequest(){
-     if(shouldCollectStats())
+void Stats::popRequest() {
+    if (shouldCollectStats())
         this->reqQueue.pop();
- }
+}

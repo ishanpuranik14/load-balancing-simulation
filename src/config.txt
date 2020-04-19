@@ -1,5 +1,5 @@
 lambda = 500
 respSize = 100
-maxSimulationTime = 3
+maxSimulationTime = 200000
 alpha = 200 
 snapshotInterval = 10

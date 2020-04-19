@@ -7,7 +7,8 @@ enable_testing()
 
 find_package(spdlog REQUIRED)
 
-add_executable(${PROJECT_NAME} src/simulator.cpp src/Poisson.cpp src/Generator.cpp src/Uniform.cpp src/Server.cpp src/Stats.cpp src/Request.cpp src/Clock.h src/Clock.cpp)
+add_executable(${PROJECT_NAME} src/simulator.cpp src/Poisson.cpp src/Generator.cpp src/Uniform.cpp src/Server.cpp
+        src/Stats.cpp src/Request.cpp src/Clock.h src/Clock.cpp src/ConfigReader.cpp)
 spdlog_enable_warnings(${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
 

@@ -12,23 +12,20 @@ class Server {
     int server_no;
 
     long double avgRespSize, utilization;
-    std::queue<Request> reqQueue, processedReqQueue;
+    std::queue<Request> reqQueue;
 
     std::queue<std::pair<int, Request>> deferredRequests;
     Stats stats;
 
     long long totalReqs;
     long long totalRespSize;
+    long long pendingReqSize;
 
 public:
 
     Server(long long alpha, int server_no, long double startStatCollectionFrom);
 
-    std::queue<Request> getReqQueue();
-
     Stats &getStats();
-
-    std::queue<Request> getProcessedReqQueue();
 
     long long getAlpha();
 
@@ -62,6 +59,8 @@ public:
     void processData(int timeDelta, Server *servers[], int server_count);
 
     double getPartiallyProcessedRequestCount();
+
+    void setPendingRequestSize(long long int i);
 };
 
 

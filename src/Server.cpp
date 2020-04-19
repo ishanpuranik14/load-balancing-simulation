@@ -10,16 +10,10 @@ Server::Server(long long alpha, int server_no, long double startStatCollectionFr
     this->server_no = server_no;
     totalReqs = 0;
     totalRespSize = 0;
+    pendingReqSize = 0;
     spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
 }
 
-std::queue<Request> Server::getReqQueue() {
-    return reqQueue;
-}
-
-std::queue<Request> Server::getProcessedReqQueue() {
-    return processedReqQueue;
-}
 
 long long Server::getAlpha() {
     return alpha;
@@ -30,19 +24,16 @@ long double Server::getUtilization() {
 }
 
 long long Server::getPendingRequestCount() {
-    return static_cast<long long>(getReqQueue().size());
+    return static_cast<long long>(reqQueue.size());
 }
 
 long long Server::getPendingRequestSize() {
-    long long numRequests = getPendingRequestCount();
-    long long pendingReqSize = 0;
-    while (numRequests--) {
-        Request &cur = reqQueue.front();
-        pendingReqSize += cur.getPendingSize();
-        reqQueue.pop();
-        reqQueue.push(cur);
-    }
     return pendingReqSize;
+}
+
+void Server::setPendingRequestSize(long long i) {
+    pendingReqSize = i;
+    stats.setPendingRequestSize(i);
 }
 
 long double Server::calculateUtilization() {
@@ -56,6 +47,7 @@ void Server::addRequest(Request request) {
     stats.setTotalReqs(stats.getTotalReqs() + 1);
     stats.setTotalRespSize(stats.getTotalRespSize() + request.getRespSize());
     stats.setAvgRespSize((long double) stats.getTotalRespSize() / stats.getTotalReqs());
+    setPendingRequestSize(getPendingRequestSize() + request.getRespSize());
 
     totalReqs++;
     totalRespSize += request.getRespSize();
@@ -261,41 +253,46 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
 
 void Server::processData(int timeDelta, Server **servers, int server_count) {
     long long bytesProcessedInDelta = 0;
-    long long  maxBytes = timeDelta * alpha;
+    long long remainingCapacityForDelta = timeDelta * alpha;
     // Conduct normal execution on this server
-    spdlog::trace("\t\tServer #{} will process {} bytes in {} time units", server_no, maxBytes, timeDelta);
-    while (!reqQueue.empty() && maxBytes > 0) {
+    spdlog::trace("\t\tServer #{} will process {} bytes in {} time units", server_no, remainingCapacityForDelta,
+                  timeDelta);
+    while (!reqQueue.empty() && remainingCapacityForDelta > 0) {
         Request &cur = reqQueue.front();
         long long pendingSize = cur.getPendingSize();
         // Calculate the time spent in the queue, if applicable
         if (pendingSize == cur.getRespSize()) {
             stats.setTotalWaitingTime(stats.getTotalWaitingTime() + currentTime - cur.getTimestamp() +
-                                      ((long double) bytesProcessedInDelta) / (long double)(timeDelta * alpha));
+                                      ((long double) bytesProcessedInDelta) / (long double) (timeDelta * alpha));
         }
-        if (pendingSize > maxBytes) {
+
+        if (pendingSize > remainingCapacityForDelta) {
             // update
-            cur.updatePendingSize(maxBytes);
+            cur.updatePendingSize(remainingCapacityForDelta);
             spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no,
                           (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
-            stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + maxBytes);
-            bytesProcessedInDelta += maxBytes;
-            maxBytes -= maxBytes;
+            stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + remainingCapacityForDelta);
+            bytesProcessedInDelta += remainingCapacityForDelta;
+            setPendingRequestSize(getPendingRequestSize() - remainingCapacityForDelta);
+            remainingCapacityForDelta = 0;
         } else {
             // update
-            maxBytes -= pendingSize;
+            remainingCapacityForDelta -= pendingSize;
+            setPendingRequestSize(getPendingRequestSize() - pendingSize);
             cur.updatePendingSize(pendingSize);
-            spdlog::trace("\t\t\t Else condition: Going to pop!! Server #{} processed {} / {} bytes of response for request #{}", server_no,
-                          (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
+            spdlog::trace(
+                    "\t\t\t Else condition: Going to pop!! Server #{} processed {} / {} bytes of response for request #{}",
+                    server_no,
+                    (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
             reqQueue.pop();
             stats.popRequest();
             bytesProcessedInDelta += pendingSize;
-            long double timestamp = currentTime + ((long double)bytesProcessedInDelta) / ((long double)(long double)(timeDelta * alpha));
+            long double timestamp = currentTime + ((long double) bytesProcessedInDelta) /
+                                                  ((long double) (long double) (timeDelta * alpha));
             cur.updateFinishedTimestamp(timestamp); // +1 because it finishes at the end of current time unit
-            processedReqQueue.push(cur);
             totalFullyProcessedBytes += cur.getRespSize();
 
             stats.pushProcessedReqQueueForStats(cur);
-            stats.setTotalFullyProcessedBytes(stats.getTotalFullyProcessedBytes() + cur.getRespSize()); // TODO remove if not being used. looks wrong
             stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + pendingSize);
             stats.setTotalRespTime(stats.getTotalRespTime() + cur.getFinishedTimestamp() - cur.getTimestamp());
 
@@ -305,8 +302,8 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
         }
     }
     spdlog::trace("\t\t\tServer #{} this iteration: bytes processed: {} | Busytime this iteration: {}", server_no,
-                  bytesProcessedInDelta, ((long double)bytesProcessedInDelta) / ((long double)alpha));
-    stats.setTotalBusyTime(stats.getTotalBusyTime() + (((long double)bytesProcessedInDelta) / ((long double)alpha)));
+                  bytesProcessedInDelta, ((long double) bytesProcessedInDelta) / ((long double) alpha));
+    stats.setTotalBusyTime(stats.getTotalBusyTime() + (((long double) bytesProcessedInDelta) / ((long double) alpha)));
 }
 
 double Server::getPartiallyProcessedRequestCount() {
