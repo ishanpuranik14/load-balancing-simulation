@@ -12,6 +12,10 @@ Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
     this->sentBy = sentBy;
     forwardingTimestamp = 0;
     finishedTimestamp = 0;
+    nextRequest = NULL;
+    nextNormalRequest = NULL;
+    prevRequest = NULL;
+    prevNormalRequest = NULL;
 }
 
 double Request::generate_random_number(double low, double high) {
@@ -61,4 +65,36 @@ long double Request::getFinishedTimestamp() {
 
 void Request::updateFinishedTimestamp(long double finishedTime) {
     this->finishedTimestamp = finishedTime;
+}
+
+Request * Request::getNextRequest(){
+    return nextRequest;
+}
+
+void Request::setNextRequest(Request *next){
+    nextRequest = next;
+}
+
+Request * Request::getNextNormalRequest(){
+    return nextNormalRequest;
+}
+
+void Request::setNextNormalRequest(Request *nextNormal){
+    nextNormalRequest = nextNormal;
+}
+
+Request * Request::getPrevRequest(){
+    return prevRequest;
+}
+
+void Request::setPrevRequest(Request *prev){
+    prevRequest = prev;
+}
+
+Request * Request::getPrevNormalRequest(){
+    return prevNormalRequest;
+}
+
+void Request::setPrevNormalRequest(Request *prevNormal){
+    prevNormalRequest = prevNormal;
 }
