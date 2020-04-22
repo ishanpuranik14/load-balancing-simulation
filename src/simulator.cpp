@@ -84,7 +84,6 @@ void printStatistics(Server *servers[], int server_count, long double time) {
                    << averageServiceRate << "," << ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()) << ","
                    << avgRespTime << endl;
     }
-    cout << endl;
     outputFile.close();
     outputFile.open(overallStats, std::ios_base::app);
     outputFile << time << "," << totalRequestsProcessed << "," << totalUtilization / double(server_count) << ","
@@ -103,24 +102,25 @@ void printStatistics(Server *servers[], int server_count, long double time) {
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     // Initializations
-    ConfigReader* p = ConfigReader::getInstance();
+    ConfigReader* cr = ConfigReader::getInstance();
 
    // parse the configuration file
-    p->parseFile("config.txt");
+    cr->parseFile("config.txt");
 
    // Dump map on the console after parsing it
-    p->dumpFileValues();
+    cr->dumpFileValues();
 
    // Define variables to store the value
     long double maxSimulationTime,snapshotInterval;
     long long alp;
-    int respSize,lambda;
+    int respSize;
+    long double lambda;
    // Update the variable by the value present in the configuration file.
-    p->getValue("lambda", lambda);
-    p->getValue("alpha", alp );
-    p->getValue("maxSimulationTime",maxSimulationTime);
-    p->getValue("respSize", respSize);
-    p->getValue("snapshotInterval",snapshotInterval);
+    cr->getValue("lambda", lambda);
+    cr->getValue("alpha", alp );
+    cr->getValue("maxSimulationTime", maxSimulationTime);
+    cr->getValue("respSize", respSize);
+    cr->getValue("snapshotInterval", snapshotInterval);
 
     // TODO print config values nicely using spdlog
 
@@ -139,8 +139,8 @@ int main(int argc, char **argv) {
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
     spdlog::trace("Number of server: {}", server_count);
-    //Poisson p = Poisson(0.25/4096);
-    Uniform u = Uniform(1,lambda);
+//    Poisson p = Poisson(lambda/4096);
+    Uniform u = Uniform(8192, lambda);
     for (int i = 0; i < server_count; i++) {
         servers[i] = new Server(alpha[i], i, 0);
     }
@@ -149,18 +149,17 @@ int main(int argc, char **argv) {
     spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (currentTime < maxSimulationTime) {
         int t = 0;
-        int nextTimeDelta = (int) u.generate(lambda);
+        int nextTimeDelta = (int) u.generate();
+//        int nextTimeDelta = (int) p.generate();
         spdlog::trace("next request in time {}",nextTimeDelta);
         if (currentTime != 0) {
             spdlog::trace("----------------------------------------");
             spdlog::trace("\tTime elapsed {} time units", currentTime);
             spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
-            Request request = Request(currentTime, 1, -1,respSize);
-            spdlog::trace("\tCreated the current request with ID: {}", request.getReqId());
-            spdlog::trace("\tCurrent response size = {}", request.getRespSize());
+            spdlog::trace("\tCurrent response size = {}", respSize);
             int nextServer = rand() % server_count;
             spdlog::trace("\tMapping the request on to server #{}", nextServer);
-            (*servers[nextServer]).addRequest(request);
+            (*servers[nextServer]).addRequest(currentTime, respSize, -1, -1);
             spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
         }
         while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
@@ -187,6 +186,5 @@ int main(int argc, char **argv) {
         }
     }
     spdlog::trace("----SIMULATION ENDS----");
-    cout << endl;
     return 0;
 }

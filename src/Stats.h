@@ -6,15 +6,15 @@
 #include <cstdio>
 
 class Stats {
-    long long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, pendingReqSize, processedReqCount;
+    long long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, pendingReqSize,
+        processedReqCount, pendingReqCount;
     long double avgRespSize, utilization, totalRespTime, totalWaitingTime;
     long double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
     long double statStartTime;
-    std::queue<Request> reqQueue, processedReqQueueForStats;
 
 public:
 
-    Stats(long double startCollectingAt);
+    explicit Stats(long double startCollectingAt);
 
     void pushProcessedReqQueueForStats(Request cur);
 
@@ -66,17 +66,15 @@ public:
 
     long double calculateUtilization(long long i);
 
-    void addRequest(Request request);
-
-    void removeRequest(Request request);
-
     long long getPendingRequestSize();
 
-    long long getPendingReqCount();
-
-    void popRequest();
+    long long getPendingReqCount() const;
 
     void setPendingRequestSize(long long i);
+
+    void incrementPendingReqCount();
+
+    void decrementPendingReqCount();
 };
 
 #endif //LOAD_BALANCING_SIMULATION_STATS_H

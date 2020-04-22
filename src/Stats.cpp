@@ -15,6 +15,7 @@ Stats::Stats(long double startCollectingAt) {
     avgRespSize = 0.0;
     pendingReqSize = 0;
     processedReqCount = 0;
+    pendingReqCount = 0;
     statStartTime = startCollectingAt;
 }
 
@@ -34,8 +35,9 @@ long long Stats::getTotalRespSize() const {
 }
 
 void Stats::setTotalRespSize(long long totalRespSize) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::totalRespSize = totalRespSize;
+    }
 }
 
 long long Stats::getTotalReqs() const {
@@ -43,8 +45,9 @@ long long Stats::getTotalReqs() const {
 }
 
 void Stats::setTotalReqs(long long totalReqs) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::totalReqs = totalReqs;
+    }
 }
 
 long long Stats::getTotalRespBytesProcessed() const {
@@ -52,8 +55,9 @@ long long Stats::getTotalRespBytesProcessed() const {
 }
 
 void Stats::setTotalRespBytesProcessed(long long totalRespBytesProcessed) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::totalRespBytesProcessed = totalRespBytesProcessed;
+    }
 }
 
 long long Stats::getCumulativePendingCount() const {
@@ -61,8 +65,9 @@ long long Stats::getCumulativePendingCount() const {
 }
 
 void Stats::setCumulativePendingCount(long long cumulativePendingCount) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::cumulativePendingCount = cumulativePendingCount;
+    }
 }
 
 
@@ -71,8 +76,9 @@ long double Stats::getAvgRespSize() const {
 }
 
 void Stats::setAvgRespSize(long double avgRespSize) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::avgRespSize = avgRespSize;
+    }
 }
 
 long double Stats::getUtilization() const {
@@ -80,8 +86,9 @@ long double Stats::getUtilization() const {
 }
 
 void Stats::setUtilization(long double utilization) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::utilization = utilization;
+    }
 }
 
 long double Stats::getTotalRespTime() const {
@@ -89,8 +96,9 @@ long double Stats::getTotalRespTime() const {
 }
 
 void Stats::setTotalRespTime(long double totalRespTime) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::totalRespTime = totalRespTime;
+    }
 }
 
 long double Stats::getTotalWaitingTime() const {
@@ -108,8 +116,9 @@ long double Stats::getTotalBusyTime() const {
 }
 
 void Stats::setTotalBusyTime(long double totalBusyTime) {
-    if (shouldCollectStats())
+    if (shouldCollectStats()) {
         Stats::totalBusyTime = totalBusyTime;
+    }
 }
 
 bool Stats::shouldCollectStats() {
@@ -136,42 +145,28 @@ long double Stats::calculateUtilization(long long alpha) {
     }
 }
 
-void Stats::addRequest(Request request) {
-    if (shouldCollectStats()) {
-        reqQueue.push(request);
-    }
-}
-
-void Stats::removeRequest(Request requestToBeRemoved) {
-    if (shouldCollectStats()) {
-        long numRequests = getPendingReqCount();
-        while (numRequests--) {
-            // Get the request
-            Request &cur = reqQueue.front();
-            reqQueue.pop();
-            // Ignore if this is the one to be removed
-            if (cur.getReqId() != requestToBeRemoved.getReqId()) {
-                // Add to the back of the queue
-                reqQueue.push(cur);
-            }
-        }
-    }
-}
-
 long long Stats::getPendingRequestSize() {
     return pendingReqSize;
 }
 
 void Stats::setPendingRequestSize(long long i) {
-    pendingReqSize = i;
+    if (shouldCollectStats()) {
+        pendingReqSize = i;
+    }
 }
 
-long long Stats::getPendingReqCount() {
-    long long numRequests = reqQueue.size();
-    return numRequests;
+long long Stats::getPendingReqCount() const {
+    return pendingReqCount;
 }
 
-void Stats::popRequest() {
-    if (shouldCollectStats())
-        this->reqQueue.pop();
+void Stats::incrementPendingReqCount() {
+    if (shouldCollectStats()) {
+        pendingReqCount++;
+    }
+}
+
+void Stats::decrementPendingReqCount() {
+    if (shouldCollectStats()) {
+        pendingReqCount--;
+    }
 }

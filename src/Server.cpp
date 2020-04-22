@@ -40,17 +40,20 @@ long double Server::calculateUtilization() {
     return (long double) totalFullyProcessedBytes / (alpha * currentTime);
 }
 
-void Server::addRequest(Request request) {
-    reqQueue.push(request);
+// Called during creation and forwarding requests
+void Server::addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp) {
+    Request x = Request(timestamp, 1, sentBy, respSize);
+    x.updateForwardingTimestamp(forwardingTimestamp);
+    reqQueue.push(x);
 
-    stats.addRequest(request);
+    stats.incrementPendingReqCount();
     stats.setTotalReqs(stats.getTotalReqs() + 1);
-    stats.setTotalRespSize(stats.getTotalRespSize() + request.getRespSize());
+    stats.setTotalRespSize(stats.getTotalRespSize() + respSize);
     stats.setAvgRespSize((long double) stats.getTotalRespSize() / stats.getTotalReqs());
-    setPendingRequestSize(getPendingRequestSize() + request.getRespSize());
 
+    setPendingRequestSize(getPendingRequestSize() + respSize);
     totalReqs++;
-    totalRespSize += request.getRespSize();
+    totalRespSize += respSize;
     avgRespSize = (long double) totalRespSize / totalReqs;
 }
 
@@ -198,23 +201,21 @@ void Server::removeRequest(Request requestToBeRemoved) {
     }
 }
 
-void Server::forwardRequest(int send_to, Request requestToBeForwarded, Server **servers, int server_count,
+void Server::forwardRequest(int send_to, Request request, Server **servers, int server_count,
                             bool removeRequestFromQueue) {
     // purge the request fm the queue
     if (removeRequestFromQueue) {
-        removeRequest(requestToBeForwarded);
-        stats.removeRequest(requestToBeForwarded);
+        removeRequest(request);
+        stats.decrementPendingReqCount();
     }
     // Add the request in the reciever's queue
     // Update the relevant stats as you send stuff
-    requestToBeForwarded.updateSentBy(server_no);
-    requestToBeForwarded.updateForwardingTimestamp(currentTime);
-    (*servers[send_to]).addRequest(requestToBeForwarded);
+    (*servers[send_to]).addRequest(request.getTimestamp(), request.getRespSize(), server_no, currentTime);
 }
 
 void Server::forwardDeferredRequests(Server **servers, int server_count) {
     while (!deferredRequests.empty()) {
-        std::pair<int, Request> forwardingInfo = deferredRequests.front();
+        auto forwardingInfo = deferredRequests.front();
         deferredRequests.pop();
         forwardRequest(forwardingInfo.first, forwardingInfo.second, servers, server_count, false);
     }
@@ -267,7 +268,7 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
         }
 
         if (pendingSize > remainingCapacityForDelta) {
-            // update
+            // request partially processed
             cur.updatePendingSize(remainingCapacityForDelta);
             spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no,
                           (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
@@ -276,7 +277,7 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
             setPendingRequestSize(getPendingRequestSize() - remainingCapacityForDelta);
             remainingCapacityForDelta = 0;
         } else {
-            // update
+            // request finished processing
             remainingCapacityForDelta -= pendingSize;
             setPendingRequestSize(getPendingRequestSize() - pendingSize);
             cur.updatePendingSize(pendingSize);
@@ -285,7 +286,7 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
                     server_no,
                     (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
             reqQueue.pop();
-            stats.popRequest();
+            stats.decrementPendingReqCount();
             bytesProcessedInDelta += pendingSize;
             long double timestamp = currentTime + ((long double) bytesProcessedInDelta) /
                                                   ((long double) (long double) (timeDelta * alpha));
@@ -307,8 +308,12 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
 }
 
 double Server::getPartiallyProcessedRequestCount() {
-    Request &r = reqQueue.front();
-    return (!reqQueue.empty() && r.getPendingSize() < r.getRespSize()) ? 1 : 0;
+    if (!reqQueue.empty()) {
+        Request &r = reqQueue.front();
+        return r.getPendingSize() < r.getRespSize() ? 1 : 0;
+    } else {
+        return 0;
+    }
 }
 
 Stats &Server::getStats() {

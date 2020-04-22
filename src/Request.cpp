@@ -1,9 +1,11 @@
 #include <bits/stdc++.h>
+#include <spdlog/spdlog.h>
 #include "Request.h"
 #include "ConfigReader.h"
 long long reqIdGen = 0;
 
 Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
+    spdlog::trace("\tCreated the current request with ID: {}", reqId);
     reqId = reqIdGen++;
     this->timestamp = timestamp;
     this->reqSize = reqSize;
@@ -12,10 +14,6 @@ Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
     this->sentBy = sentBy;
     forwardingTimestamp = 0;
     finishedTimestamp = 0;
-    nextRequest = NULL;
-    nextNormalRequest = NULL;
-    prevRequest = NULL;
-    prevNormalRequest = NULL;
 }
 
 double Request::generate_random_number(double low, double high) {
@@ -31,7 +29,7 @@ int Request::getRespSize() {
     return respSize;
 }
 
-long long  Request::getPendingSize() {
+int Request::getPendingSize() {
     return pendingSize;
 }
 
@@ -65,36 +63,4 @@ long double Request::getFinishedTimestamp() {
 
 void Request::updateFinishedTimestamp(long double finishedTime) {
     this->finishedTimestamp = finishedTime;
-}
-
-Request * Request::getNextRequest(){
-    return nextRequest;
-}
-
-void Request::setNextRequest(Request *next){
-    nextRequest = next;
-}
-
-Request * Request::getNextNormalRequest(){
-    return nextNormalRequest;
-}
-
-void Request::setNextNormalRequest(Request *nextNormal){
-    nextNormalRequest = nextNormal;
-}
-
-Request * Request::getPrevRequest(){
-    return prevRequest;
-}
-
-void Request::setPrevRequest(Request *prev){
-    prevRequest = prev;
-}
-
-Request * Request::getPrevNormalRequest(){
-    return prevNormalRequest;
-}
-
-void Request::setPrevNormalRequest(Request *prevNormal){
-    prevNormalRequest = prevNormal;
 }
