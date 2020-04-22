@@ -1,0 +1,5 @@
+lambda = 5
+respSize = 40960
+maxSimulationTime = 819200000
+alpha = 500
+snapshotInterval = 10

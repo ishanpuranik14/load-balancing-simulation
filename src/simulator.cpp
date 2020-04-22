@@ -8,6 +8,7 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "Server.h"
 #include "Clock.h"
+#include "ConfigReader.h"
 
 using namespace std;
 
@@ -15,7 +16,7 @@ char const *serverStatsFileName = "serverStats.csv";
 char const *overallStats = "overallStats.csv";
 std::ofstream outputFile;
 
-void printStatistics(Server *servers[], int server_count, double time) {
+void printStatistics(Server *servers[], int server_count, long double time) {
     spdlog::info("");
     spdlog::info("----STATISTICS----");
     spdlog::info("");
@@ -37,23 +38,23 @@ void printStatistics(Server *servers[], int server_count, double time) {
     }
     outputFile.open(serverStatsFileName, std::ios_base::app);
 
-    long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0;
-    double totalUtilization = 0.0;
+    long long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0;
+    long double totalUtilization = 0.0, startTime = 0.0;
     for (int i = 0; i < server_count; i++) {
         Server &server = *servers[i];
         Stats &serverStats = server.getStats();
 
-        long pendingReqsCount = serverStats.getPendingReqCount();
-        long pendingReqsSize = serverStats.getPendingRequestSize();
-        long bytesProcessed = serverStats.getTotalRespBytesProcessed();
-        long numProcessedRequests = serverStats.getNumProcessedRequests();
-        double serverUtilization = serverStats.calculateUtilization(server.getAlpha());
-        double busyTime = serverStats.getTotalBusyTime();
-        double averageServiceRate = serverStats.getAverageServiceRate();
-        long serverCumulativePendingCount = serverStats.getCumulativePendingCount();
-        double avgRespTime = serverStats.getAvgRespTime();
-        double numPartiallyProcessedRequests = server.getPartiallyProcessedRequestCount();
-        double avgWaitingTime =
+        long long pendingReqsCount = serverStats.getPendingReqCount();
+        long long pendingReqsSize = serverStats.getPendingRequestSize();
+        long long bytesProcessed = serverStats.getTotalRespBytesProcessed();
+        long long numProcessedRequests = serverStats.getNumProcessedRequests();
+        long double serverUtilization = serverStats.calculateUtilization(server.getAlpha());
+        long double busyTime = serverStats.getTotalBusyTime();
+        long double averageServiceRate = serverStats.getAverageServiceRate();
+        long long serverCumulativePendingCount = serverStats.getCumulativePendingCount();
+        long double avgRespTime = serverStats.getAvgRespTime();
+        long double numPartiallyProcessedRequests = server.getPartiallyProcessedRequestCount();
+        long double avgWaitingTime =
                 serverStats.getTotalWaitingTime() / (numProcessedRequests + numPartiallyProcessedRequests);
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
@@ -62,6 +63,7 @@ void printStatistics(Server *servers[], int server_count, double time) {
         totalRequestsProcessed += numProcessedRequests;
         totalUtilization += serverUtilization;
         consolidatedCumulativePendingCount += serverCumulativePendingCount;
+        startTime = serverStats.getStatStartTime();
         // Print out
         spdlog::info("\tTime: {}", time);
         spdlog::info("\tServer #{}", i);
@@ -73,21 +75,20 @@ void printStatistics(Server *servers[], int server_count, double time) {
         spdlog::info("\t\t Busy time: {}", busyTime);
         spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
         spdlog::info("\t\t Average number of requests in the system: {}",
-                     (serverCumulativePendingCount * 1.0) / (time * 1.0));
+                     ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()));
         spdlog::info("\t\t Average Response Time: {}", avgRespTime);
         spdlog::info("\t\t Average Waiting Time: {}", avgWaitingTime);
         outputFile << time << "," << i << "," << pendingReqsCount << "," << pendingReqsSize << ","
                    << numProcessedRequests << "," << bytesProcessed << "," << serverUtilization << "," << busyTime
                    << ","
-                   << averageServiceRate << "," << (serverCumulativePendingCount * 1.0) / (time * 1.0) << ","
+                   << averageServiceRate << "," << ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()) << ","
                    << avgRespTime << endl;
     }
-    cout << endl;
     outputFile.close();
     outputFile.open(overallStats, std::ios_base::app);
     outputFile << time << "," << totalRequestsProcessed << "," << totalUtilization / double(server_count) << ","
                << totalBytesProcessed << "," << totalPendingReqsCount << "," << totalPendingRespSize << ","
-               << (consolidatedCumulativePendingCount * 1.0) / (time * 1.0) << endl;
+               << ((long double)consolidatedCumulativePendingCount) / (time - startTime) << endl;
     outputFile.close();
     spdlog::info("Cumulative");
     spdlog::info("Total # of requests processed : {}", totalRequestsProcessed);
@@ -95,17 +96,37 @@ void printStatistics(Server *servers[], int server_count, double time) {
     spdlog::info("Total # of pending requests : {}", totalPendingReqsCount);
     spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
     spdlog::info("Consolidated average number of requests in the system: {} / {} = {}",
-                 consolidatedCumulativePendingCount, time, (consolidatedCumulativePendingCount * 1.0) / time);
+                 consolidatedCumulativePendingCount, time, ((long double)consolidatedCumulativePendingCount) / (time - startTime));
 }
 
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     // Initializations
-    double maxSimulationTime = 100000;
-    double snapshotInterval = 10.0;     // Percentage value
-    double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
-    double checkTime = snapshotTime;
-    // Delete stat files
+    ConfigReader* cr = ConfigReader::getInstance();
+
+   // parse the configuration file
+    cr->parseFile("config.txt");
+
+   // Dump map on the console after parsing it
+    cr->dumpFileValues();
+
+   // Define variables to store the value
+    long double maxSimulationTime,snapshotInterval;
+    long long alp;
+    int respSize;
+    long double lambda;
+   // Update the variable by the value present in the configuration file.
+    cr->getValue("lambda", lambda);
+    cr->getValue("alpha", alp );
+    cr->getValue("maxSimulationTime", maxSimulationTime);
+    cr->getValue("respSize", respSize);
+    cr->getValue("snapshotInterval", snapshotInterval);
+
+    // TODO print config values nicely using spdlog
+
+    long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
+    long double checkTime = snapshotTime;
+    // Delete stat file
     if (remove(serverStatsFileName) != 0) {
         spdlog::error("Couldn't delete server stat file");
     }
@@ -113,13 +134,13 @@ int main(int argc, char **argv) {
         spdlog::error("Couldn't delete server stat file");
     }
     const int server_count = 1;
-    int alpha[server_count] = {50};
+    long long alpha[server_count] = {alp};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
     spdlog::trace("Number of server: {}", server_count);
-//    Poisson p = Poisson(0.2);
-    Uniform p = Uniform(1);
+//    Poisson p = Poisson(lambda/4096);
+    Uniform u = Uniform(8192, lambda);
     for (int i = 0; i < server_count; i++) {
         servers[i] = new Server(alpha[i], i, 0);
     }
@@ -128,19 +149,21 @@ int main(int argc, char **argv) {
     spdlog::trace("----SIMULATION BEGINS----\n\n");
     while (currentTime < maxSimulationTime) {
         int t = 0;
-        int nextTimeDelta = (int) p.generate();
+        int nextTimeDelta = (int) u.generate();
+//        int nextTimeDelta = (int) p.generate();
+        spdlog::trace("next request in time {}",nextTimeDelta);
         if (currentTime != 0) {
             spdlog::trace("----------------------------------------");
             spdlog::trace("\tTime elapsed {} time units", currentTime);
             spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
-            Request request = Request(currentTime, 1, -1);
-            spdlog::trace("\tCreated the current request with ID: {}", request.getReqId());
-            spdlog::trace("\tCurrent response size = {}", request.getRespSize());
+            spdlog::trace("\tCurrent response size = {}", respSize);
             int nextServer = rand() % server_count;
             spdlog::trace("\tMapping the request on to server #{}", nextServer);
-            (*servers[nextServer]).addRequest(request);
+            (*servers[nextServer]).addRequest(currentTime, respSize, -1, -1);
+            spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
         }
         while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
+            spdlog::trace("number of requests{}", (*servers[0]).getPendingRequestCount());
             spdlog::trace("\t\tTime elapsed {} time units", currentTime);
             // Execute policies to forward packets via RDMA
             for (int i = 0; i < server_count; i++) {
@@ -161,12 +184,7 @@ int main(int argc, char **argv) {
                 checkTime += snapshotTime;
             }
         }
-        if (currentTime == checkTime) {
-            printStatistics(servers, server_count, currentTime);
-            checkTime += snapshotTime;
-        }
     }
     spdlog::trace("----SIMULATION ENDS----");
-    cout << endl;
     return 0;
 }

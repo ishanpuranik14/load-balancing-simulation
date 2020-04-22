@@ -6,75 +6,75 @@
 #include <cstdio>
 
 class Stats {
-    long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, totalFullyProcessedBytes;
-
-    double avgRespSize, utilization, totalRespTime, totalWaitingTime;
-    double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
-    double statStartTime;
-    std::queue<Request> reqQueue, processedReqQueueForStats;
+    long long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, pendingReqSize,
+        processedReqCount, pendingReqCount;
+    long double avgRespSize, utilization, totalRespTime, totalWaitingTime;
+    long double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
+    long double statStartTime;
 
 public:
-    Stats(double startCollectingAt);
+
+    explicit Stats(long double startCollectingAt);
+
+    void pushProcessedReqQueueForStats(Request cur);
+
+    long double getStatStartTime();
 
     bool shouldCollectStats();
 
-    long getTotalRespSize() const;
+    long long getTotalRespSize() const;
 
-    void setTotalRespSize(long totalRespSize);
+    void setTotalRespSize(long long totalRespSize);
 
-    long getTotalReqs() const;
+    long long getTotalReqs() const;
 
-    void setTotalReqs(long totalReqs);
+    void setTotalReqs(long long totalReqs);
 
-    long getTotalRespBytesProcessed() const;
+    long long getTotalRespBytesProcessed() const;
 
-    void setTotalRespBytesProcessed(long totalRespBytesProcessed);
+    void setTotalRespBytesProcessed(long long totalRespBytesProcessed);
 
-    long getCumulativePendingCount() const;
+    long long getCumulativePendingCount() const;
 
-    void setCumulativePendingCount(long cumulativePendingCount);
+    void setCumulativePendingCount(long long cumulativePendingCount);
 
-    long getTotalFullyProcessedBytes() const;
+    long double getAvgRespSize() const;
 
-    void setTotalFullyProcessedBytes(long totalFullyProcessedBytes);
+    void setAvgRespSize(long double avgRespSize);
 
-    double getAvgRespSize() const;
+    long double getUtilization() const;
 
-    void setAvgRespSize(double avgRespSize);
+    void setUtilization(long double utilization);
 
-    double getUtilization() const;
+    long double getTotalRespTime() const;
 
-    void setUtilization(double utilization);
+    void setTotalRespTime(long double totalRespTime);
 
-    double getTotalRespTime() const;
+    long double getTotalWaitingTime() const;
 
-    void setTotalRespTime(double totalRespTime);
+    void setTotalWaitingTime(long double totalWaitingTime);
 
-    double getTotalWaitingTime() const;
+    long double getTotalBusyTime() const;
 
-    void setTotalWaitingTime(double totalWaitingTime);
+    void setTotalBusyTime(long double totalBusyTime);
 
-    double getTotalBusyTime() const;
+    long double getAverageServiceRate();
 
-    void setTotalBusyTime(double totalBusyTime);
+    long double getAvgRespTime();
 
-    double getAverageServiceRate();
+    long long getNumProcessedRequests();
 
-    double getAvgRespTime();
+    long double calculateUtilization(long long i);
 
-    long getNumProcessedRequests();
+    long long getPendingRequestSize();
 
-    std::queue<Request> &getProcessedReqQueueForStats();
+    long long getPendingReqCount() const;
 
-    double calculateUtilization(long i);
+    void setPendingRequestSize(long long i);
 
-    void addRequest(Request request);
+    void incrementPendingReqCount();
 
-    void removeRequest(Request request);
-
-    long getPendingRequestSize();
-
-    long getPendingReqCount();
+    void decrementPendingReqCount();
 };
 
 #endif //LOAD_BALANCING_SIMULATION_STATS_H

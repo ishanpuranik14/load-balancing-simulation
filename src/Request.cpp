@@ -1,13 +1,15 @@
 #include <bits/stdc++.h>
+#include <spdlog/spdlog.h>
 #include "Request.h"
+#include "ConfigReader.h"
+long long reqIdGen = 0;
 
-long reqIdGen = 0;
-
-Request::Request(int timestamp, int reqSize, int sentBy) {
+Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
+    spdlog::trace("\tCreated the current request with ID: {}", reqId);
     reqId = reqIdGen++;
     this->timestamp = timestamp;
     this->reqSize = reqSize;
-    respSize = 200;//(int) floor(generate_random_number(200, 500));
+    this->respSize = respSize;//(int) floor(generate_random_number(200, 500));
     pendingSize = respSize;
     this->sentBy = sentBy;
     forwardingTimestamp = 0;
@@ -19,7 +21,7 @@ double Request::generate_random_number(double low, double high) {
     return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
 }
 
-long Request::getReqId() {
+long long Request::getReqId() {
     return reqId;
 }
 
@@ -31,11 +33,11 @@ int Request::getPendingSize() {
     return pendingSize;
 }
 
-int Request::getTimestamp() {
+long double Request::getTimestamp() {
     return timestamp;
 }
 
-void Request::updatePendingSize(int bytesProcessed) {
+void Request::updatePendingSize(long long  bytesProcessed) {
     pendingSize = pendingSize - bytesProcessed;
 }
 
@@ -47,18 +49,18 @@ void Request::updateSentBy(int resentBy) {
     sentBy = resentBy;
 }
 
-long Request::getForwardingTimestamp() {
+long double Request::getForwardingTimestamp() {
     return forwardingTimestamp;
 }
 
-void Request::updateForwardingTimestamp(long forwardingTime) {
+void Request::updateForwardingTimestamp(long double forwardingTime) {
     this->forwardingTimestamp = forwardingTime;
 }
 
-double Request::getFinishedTimestamp() {
+long double Request::getFinishedTimestamp() {
     return finishedTimestamp;
 }
 
-void Request::updateFinishedTimestamp(double finishedTime) {
+void Request::updateFinishedTimestamp(long double finishedTime) {
     this->finishedTimestamp = finishedTime;
 }

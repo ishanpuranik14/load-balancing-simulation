@@ -1,7 +1,7 @@
 #include "Server.h"
 #include "Clock.h"
 
-Server::Server(long alpha, int server_no, double startStatCollectionFrom) : stats(startStatCollectionFrom) {
+Server::Server(long long alpha, int server_no, long double startStatCollectionFrom) : stats(startStatCollectionFrom) {
     // Initializations
     utilization = 0.0;
     avgRespSize = 0.0;
@@ -10,63 +10,55 @@ Server::Server(long alpha, int server_no, double startStatCollectionFrom) : stat
     this->server_no = server_no;
     totalReqs = 0;
     totalRespSize = 0;
+    pendingReqSize = 0;
     spdlog::trace("\tServer #{} | alpha : {}", server_no, alpha);
 }
 
-std::queue<Request> Server::getReqQueue() {
-    return reqQueue;
-}
 
-std::queue<Request> Server::getProcessedReqQueue() {
-    return processedReqQueue;
-}
-
-long Server::getAlpha() {
+long long Server::getAlpha() {
     return alpha;
 }
 
-double Server::getUtilization() {
+long double Server::getUtilization() {
     return utilization;
 }
 
-long Server::getPendingRequestCount() {
-    return static_cast<long>(getReqQueue().size());
+long long Server::getPendingRequestCount() {
+    return static_cast<long long>(reqQueue.size());
 }
 
-long Server::getPendingRequestSize() {
-    long numRequests = getPendingRequestCount();
-    long pendingReqSize = 0;
-    while (numRequests--) {
-        Request &cur = reqQueue.front();
-        pendingReqSize += cur.getPendingSize();
-        reqQueue.pop();
-        reqQueue.push(cur);
-    }
+long long Server::getPendingRequestSize() {
     return pendingReqSize;
 }
 
-double Server::calculateUtilization() {
-    return (double) totalFullyProcessedBytes / (alpha * currentTime);
+void Server::setPendingRequestSize(long long i) {
+    pendingReqSize = i;
+    stats.setPendingRequestSize(i);
 }
 
-void Server::addRequest(Request request) {
-    reqQueue.push(request);
+long double Server::calculateUtilization() {
+    return (long double) totalFullyProcessedBytes / (alpha * currentTime);
+}
 
-    stats.addRequest(request);
+// Called during creation and forwarding requests
+void Server::addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp) {
+    Request x = Request(timestamp, 1, sentBy, respSize);
+    x.updateForwardingTimestamp(forwardingTimestamp);
+    reqQueue.push(x);
+
+    stats.incrementPendingReqCount();
     stats.setTotalReqs(stats.getTotalReqs() + 1);
-    stats.setTotalRespSize(stats.getTotalRespSize() + request.getRespSize());
-    stats.setAvgRespSize((double) stats.getTotalRespSize() / stats.getTotalReqs());
+    stats.setTotalRespSize(stats.getTotalRespSize() + respSize);
+    stats.setAvgRespSize((long double) stats.getTotalRespSize() / stats.getTotalReqs());
 
+    setPendingRequestSize(getPendingRequestSize() + respSize);
     totalReqs++;
-    totalRespSize += request.getRespSize();
-    avgRespSize = (double) totalRespSize / totalReqs;
+    totalRespSize += respSize;
+    avgRespSize = (long double) totalRespSize / totalReqs;
 }
 
 void Server::updatePendingCount() {
     stats.setCumulativePendingCount(stats.getCumulativePendingCount() + getPendingRequestCount());
-//    if (shouldCollectStats()) {
-//        cumulativePendingCount += getPendingRequestCount();
-//    }
 }
 
 bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count) {
@@ -74,7 +66,7 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
     Use the when policy to determine whether to forward any request(s)
     */
     bool time_to_forward = false;
-    double policy_0_threshold = 1.5;
+    long double policy_0_threshold = 1.5;
     spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
     switch (policyNum) {
         case -1:
@@ -100,7 +92,7 @@ std::vector<Request> Server::whatPolicy(int policyNum, int timeDelta, Server **s
     */
     std::vector<Request> requestsToBeForwarded;
     // Go thru all the requests
-    long numRequests = getPendingRequestCount();
+    long long numRequests = getPendingRequestCount();
     spdlog::trace("\t\t\tWhat policy #{}:", policyNum);
     spdlog::trace("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
     while (numRequests--) {
@@ -138,7 +130,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
     */
     // TODO include alpha while computing load
     int send_to = server_no;               // Use this to determine whom to send the request to
-    long least_load;                       // Use this to store the load of the server chosen
+    long long least_load;                       // Use this to store the load of the server chosen
     std::vector<int> randomly_selected_servers; // Use this for Power of k
     int k = 2;                             // Use this to play with Power of k
     spdlog::trace("\t\t\tWhere Policy #{} executing switch", policyNum);
@@ -154,7 +146,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
             send_to = (server_no + 1) % server_count;
             for (int i = 0; i < server_count; i++) {
                 if (i != server_no) {
-                    long load = (*servers[i]).getPendingRequestSize();
+                    long long load = (*servers[i]).getPendingRequestSize();
                     if (load < least_load) {
                         least_load = load;
                         send_to = i;
@@ -196,7 +188,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
 
 // TODO update any counters
 void Server::removeRequest(Request requestToBeRemoved) {
-    long numRequests = getPendingRequestCount();
+    long long numRequests = getPendingRequestCount();
     while (numRequests--) {
         // Get the request
         Request &cur = reqQueue.front();
@@ -209,23 +201,21 @@ void Server::removeRequest(Request requestToBeRemoved) {
     }
 }
 
-void Server::forwardRequest(int send_to, Request requestToBeForwarded, Server **servers, int server_count,
+void Server::forwardRequest(int send_to, Request request, Server **servers, int server_count,
                             bool removeRequestFromQueue) {
     // purge the request fm the queue
     if (removeRequestFromQueue) {
-        removeRequest(requestToBeForwarded);
-        stats.removeRequest(requestToBeForwarded);
+        removeRequest(request);
+        stats.decrementPendingReqCount();
     }
     // Add the request in the reciever's queue
     // Update the relevant stats as you send stuff
-    requestToBeForwarded.updateSentBy(server_no);
-    requestToBeForwarded.updateForwardingTimestamp(currentTime);
-    (*servers[send_to]).addRequest(requestToBeForwarded);
+    (*servers[send_to]).addRequest(request.getTimestamp(), request.getRespSize(), server_no, currentTime);
 }
 
 void Server::forwardDeferredRequests(Server **servers, int server_count) {
     while (!deferredRequests.empty()) {
-        std::pair<int, Request> forwardingInfo = deferredRequests.front();
+        auto forwardingInfo = deferredRequests.front();
         deferredRequests.pop();
         forwardRequest(forwardingInfo.first, forwardingInfo.second, servers, server_count, false);
     }
@@ -243,7 +233,7 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
         // Go thru and execute the what policy till it becomes inapplicable
         std::vector<Request> requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
         // Forward each request using the where policy
-        for (int i = 0; i < requestsToBeForwarded.size(); i++) {
+        for (long long i = 0; i < requestsToBeForwarded.size(); i++) {
             spdlog::trace("\t\tServer #{} will execute the where policy for requestID: {}", server_no,
                           requestsToBeForwarded[i].getReqId());
             int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
@@ -263,42 +253,47 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
 }
 
 void Server::processData(int timeDelta, Server **servers, int server_count) {
-    int bytesProcessedInDelta = 0;
-    int maxBytes = timeDelta * alpha;
+    long long bytesProcessedInDelta = 0;
+    long long remainingCapacityForDelta = timeDelta * alpha;
     // Conduct normal execution on this server
-    spdlog::trace("\t\tServer #{} will process {} bytes in {} time units", server_no, maxBytes, timeDelta);
-    while (!reqQueue.empty() && maxBytes > 0) {
+    spdlog::trace("\t\tServer #{} will process {} bytes in {} time units", server_no, remainingCapacityForDelta,
+                  timeDelta);
+    while (!reqQueue.empty() && remainingCapacityForDelta > 0) {
         Request &cur = reqQueue.front();
-        int pendingSize = cur.getPendingSize();
+        long long pendingSize = cur.getPendingSize();
+        // Calculate the time spent in the queue, if applicable
         if (pendingSize == cur.getRespSize()) {
             stats.setTotalWaitingTime(stats.getTotalWaitingTime() + currentTime - cur.getTimestamp() +
-                                      ((double) bytesProcessedInDelta) / maxBytes);
-//            totalWaitingTime += currentTime - cur.getTimestamp() + ((double) bytesProcessedInDelta) / maxBytes;
+                                      ((long double) bytesProcessedInDelta) / (long double) (timeDelta * alpha));
         }
-        if (pendingSize > maxBytes) {
-            // update
-            cur.updatePendingSize(maxBytes);
+
+        if (pendingSize > remainingCapacityForDelta) {
+            // request partially processed
+            cur.updatePendingSize(remainingCapacityForDelta);
             spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no,
                           (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
-            stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + maxBytes);
-//            if (shouldCollectStats()) { totalRespBytesProcessed += maxBytes; }
-            bytesProcessedInDelta += maxBytes;
-            maxBytes -= maxBytes;
+            stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + remainingCapacityForDelta);
+            bytesProcessedInDelta += remainingCapacityForDelta;
+            setPendingRequestSize(getPendingRequestSize() - remainingCapacityForDelta);
+            remainingCapacityForDelta = 0;
         } else {
-            // update
-            double timestamp = currentTime + (pendingSize * 1.0) / maxBytes;
-            maxBytes -= pendingSize;
+            // request finished processing
+            remainingCapacityForDelta -= pendingSize;
+            setPendingRequestSize(getPendingRequestSize() - pendingSize);
             cur.updatePendingSize(pendingSize);
-            spdlog::trace("\t\t\tServer #{} processed {} / {} bytes of response for request #{}", server_no,
-                          (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
+            spdlog::trace(
+                    "\t\t\t Else condition: Going to pop!! Server #{} processed {} / {} bytes of response for request #{}",
+                    server_no,
+                    (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
             reqQueue.pop();
+            stats.decrementPendingReqCount();
             bytesProcessedInDelta += pendingSize;
+            long double timestamp = currentTime + ((long double) bytesProcessedInDelta) /
+                                                  ((long double) (long double) (timeDelta * alpha));
             cur.updateFinishedTimestamp(timestamp); // +1 because it finishes at the end of current time unit
-            processedReqQueue.push(cur);
             totalFullyProcessedBytes += cur.getRespSize();
 
-            stats.getProcessedReqQueueForStats().push(cur);
-            stats.setTotalFullyProcessedBytes(stats.getTotalFullyProcessedBytes() + cur.getRespSize());
+            stats.pushProcessedReqQueueForStats(cur);
             stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + pendingSize);
             stats.setTotalRespTime(stats.getTotalRespTime() + cur.getFinishedTimestamp() - cur.getTimestamp());
 
@@ -308,13 +303,17 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
         }
     }
     spdlog::trace("\t\t\tServer #{} this iteration: bytes processed: {} | Busytime this iteration: {}", server_no,
-                  bytesProcessedInDelta, (bytesProcessedInDelta * 1.0) / (alpha * 1.0));
-    stats.setTotalBusyTime(stats.getTotalBusyTime() + ((bytesProcessedInDelta * 1.0) / (alpha * 1.0)));
+                  bytesProcessedInDelta, ((long double) bytesProcessedInDelta) / ((long double) alpha));
+    stats.setTotalBusyTime(stats.getTotalBusyTime() + (((long double) bytesProcessedInDelta) / ((long double) alpha)));
 }
 
 double Server::getPartiallyProcessedRequestCount() {
-    Request &r = reqQueue.front();
-    return r.getPendingSize() < r.getRespSize() ? 1 : 0;
+    if (!reqQueue.empty()) {
+        Request &r = reqQueue.front();
+        return r.getPendingSize() < r.getRespSize() ? 1 : 0;
+    } else {
+        return 0;
+    }
 }
 
 Stats &Server::getStats() {

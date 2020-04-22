@@ -7,40 +7,37 @@
 #include "Stats.h"
 
 class Server {
-    long totalFullyProcessedBytes;
-    long alpha;
+    long long totalFullyProcessedBytes;
+    long long alpha;
     int server_no;
 
-    double avgRespSize, utilization;
-    std::queue<Request> reqQueue, processedReqQueue;
+    long double avgRespSize, utilization;
+    std::queue<Request> reqQueue;
 
     std::queue<std::pair<int, Request>> deferredRequests;
     Stats stats;
 
-    long totalReqs;
-    long totalRespSize;
+    long long totalReqs;
+    long long totalRespSize;
+    long long pendingReqSize;
 
 public:
 
-    Server(long alpha, int server_no, double startStatCollectionFrom);
-
-    std::queue<Request> getReqQueue();
+    Server(long long alpha, int server_no, long double startStatCollectionFrom);
 
     Stats &getStats();
 
-    std::queue<Request> getProcessedReqQueue();
+    long long getAlpha();
 
-    long getAlpha();
+    long double getUtilization();
 
-    double getUtilization();
+    long long getPendingRequestCount();
 
-    long getPendingRequestCount();
+    long long getPendingRequestSize();
 
-    long getPendingRequestSize();
+    long double calculateUtilization();
 
-    double calculateUtilization();
-
-    void addRequest(Request request);
+    void addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp);
 
     void updatePendingCount();
 
@@ -62,6 +59,8 @@ public:
     void processData(int timeDelta, Server *servers[], int server_count);
 
     double getPartiallyProcessedRequestCount();
+
+    void setPendingRequestSize(long long int i);
 };
 
 
