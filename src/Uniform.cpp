@@ -3,11 +3,11 @@
 #include "spdlog/spdlog.h"
 
 
-Uniform::Uniform(double iat, int lambda = 1) : Generator() {
+Uniform::Uniform(int lambda, int iat) : Generator() {
     this->iat = iat;
     this->lambda = lambda;
     this->counter = 0;
-    spdlog::info("Using Uniform distribution with lambda: {} and IAT: {}\n", lambda, iat);
+    //spdlog::info("Using Uniform distribution with lambda: {} and IAT: {}\n", lambda, iat);
 }
 
 double Uniform::generate() {

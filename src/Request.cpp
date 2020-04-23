@@ -1,7 +1,6 @@
 #include <bits/stdc++.h>
 #include <spdlog/spdlog.h>
 #include "Request.h"
-#include "ConfigReader.h"
 long long reqIdGen = 0;
 
 Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {

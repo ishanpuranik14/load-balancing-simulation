@@ -8,15 +8,25 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "Server.h"
 #include "Clock.h"
-#include "ConfigReader.h"
 
 using namespace std;
 
-char const *serverStatsFileName = "serverStats.csv";
-char const *overallStats = "overallStats.csv";
 std::ofstream outputFile;
-
-void printStatistics(Server *servers[], int server_count, long double time) {
+int prev_iteration = 0;
+void printStatistics(Server *servers[], int server_count, long double time, long iteration) {
+    string serverStats = "serverStats_";
+    string overall = "overallStats_";
+    string end = to_string(iteration).append(".csv");
+    char const *serverStatsFileName = (serverStats.append(end)).c_str();
+    char const *overallStats = (overall.append(end)).c_str();
+    if(iteration!=prev_iteration){
+        if (remove(serverStatsFileName) != 0) {
+            spdlog::error("Couldn't delete server stat file");
+        }
+        if (remove(overallStats) != 0) {
+            spdlog::error("Couldn't delete server stat file");
+        }
+    }
     spdlog::info("");
     spdlog::info("----STATISTICS----");
     spdlog::info("");
@@ -97,94 +107,116 @@ void printStatistics(Server *servers[], int server_count, long double time) {
     spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
     spdlog::info("Consolidated average number of requests in the system: {} / {} = {}",
                  consolidatedCumulativePendingCount, time, ((long double)consolidatedCumulativePendingCount) / (time - startTime));
+    prev_iteration = iteration;
 }
 
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
-    // Initializations
-    ConfigReader* cr = ConfigReader::getInstance();
+    //Delete Stat file
 
-   // parse the configuration file
-    cr->parseFile("config.txt");
+    //Reading from csv confif file and assigning all parameters
 
-   // Dump map on the console after parsing it
-    cr->dumpFileValues();
-
-   // Define variables to store the value
-    long double maxSimulationTime,snapshotInterval;
-    long long alp;
-    int respSize;
-    long double lambda;
-   // Update the variable by the value present in the configuration file.
-    cr->getValue("lambda", lambda);
-    cr->getValue("alpha", alp );
-    cr->getValue("maxSimulationTime", maxSimulationTime);
-    cr->getValue("respSize", respSize);
-    cr->getValue("snapshotInterval", snapshotInterval);
-
-    // TODO print config values nicely using spdlog
-
-    long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
-    long double checkTime = snapshotTime;
-    // Delete stat file
-    if (remove(serverStatsFileName) != 0) {
-        spdlog::error("Couldn't delete server stat file");
-    }
-    if (remove(overallStats) != 0) {
-        spdlog::error("Couldn't delete server stat file");
-    }
-    const int server_count = 1;
-    long long alpha[server_count] = {alp};
-    Server *servers[server_count];
-    spdlog::trace("Simulation parameters");
-    spdlog::trace("Simulation time: {}", maxSimulationTime);
-    spdlog::trace("Number of server: {}", server_count);
-//    Poisson p = Poisson(lambda/4096);
-    Uniform u = Uniform(8192, lambda);
-    for (int i = 0; i < server_count; i++) {
-        servers[i] = new Server(alpha[i], i, 0);
-    }
-    // Iteration
-    cout << endl;
-    spdlog::trace("----SIMULATION BEGINS----\n\n");
-    while (currentTime < maxSimulationTime) {
-        int t = 0;
-        int nextTimeDelta = (int) u.generate();
-//        int nextTimeDelta = (int) p.generate();
-        spdlog::trace("next request in time {}",nextTimeDelta);
-        if (currentTime != 0) {
-            spdlog::trace("----------------------------------------");
-            spdlog::trace("\tTime elapsed {} time units", currentTime);
-            spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
-            spdlog::trace("\tCurrent response size = {}", respSize);
-            int nextServer = rand() % server_count;
-            spdlog::trace("\tMapping the request on to server #{}", nextServer);
-            (*servers[nextServer]).addRequest(currentTime, respSize, -1, -1);
-            spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
+    ifstream fin("config.csv");  
+    int count = 0;
+    int iteration = 0;  
+    vector<string> row; 
+    string line,word;
+    getline(fin,line);
+    while (getline(fin,line)) {
+        iteration++; 
+        row.clear();
+        currentTime = 0;
+        stringstream s(line); 
+        while (getline(s, word, ',')) { 
+            row.push_back(word); 
+        } 
+        int server_count = stoi(row[1]);
+        int granularity = stoi(row[6]);
+        int lambda = stoi(row[0]);
+        int respSize = stoi(row[3])*granularity;
+        long double maxSimulationTime = stold(row[4])*granularity;
+        long double snapshotInterval = stold(row[5]);
+        string dist = row[7];
+        long long alpha[server_count];
+        int count = 0;
+        row[2] = row[2].substr(1,row[2].length()-2);
+        stringstream l(row[2]);
+        while(getline(l,word,';')){
+            alpha[count] = stoll(word);
+            count++;
         }
-        while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
-            spdlog::trace("number of requests: {}", (*servers[0]).getPendingRequestCount());
-            spdlog::trace("\t\tTime elapsed {} time units", currentTime);
-            // Execute policies to forward packets via RDMA
-            for (int i = 0; i < server_count; i++) {
-                (*servers[i]).executeForwardingPipeline(1, servers, server_count);
+        long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
+        long double checkTime = snapshotTime;
+        spdlog::info("server count:{}",server_count);
+        spdlog::info("  granularity:{}",granularity);
+        spdlog::info("  lambda:{}",lambda);
+        spdlog::info("  respSize:{}",respSize);
+        spdlog::info("  maxSimulationTime:{}",maxSimulationTime);
+        spdlog::info("  snapshotInterval:{}",snapshotInterval);
+        spdlog::info("  distrbution:{}",dist);
+        spdlog::info(" alpha_values: ");
+        for (int i = 0; i<server_count;i++){
+            spdlog::info("{} ",alpha[i]);
+        }
+        cout<<endl;
+        Server *servers[server_count];
+        spdlog::trace("Simulation parameters");
+        spdlog::trace("Simulation time: {}", maxSimulationTime);
+        spdlog::trace("Number of server: {}", server_count);
+        Poisson p = Poisson(lambda,granularity);
+        Uniform u = Uniform(lambda,granularity);
+        for (int i = 0; i < server_count; i++) {
+            servers[i] = new Server(alpha[i], i, 0);
+        }
+        // Iteration
+        cout << endl;
+        spdlog::trace("----SIMULATION BEGINS----\n\n");
+        while (currentTime < maxSimulationTime) {
+            int t = 0;
+            int nextTimeDelta = 0;
+            if(dist == "p"){
+                //spdlog::info("Using Poisson distribution with lambda: {}\n", double(lambda*1.0/granularity*1.0));
+                nextTimeDelta = (int) p.generate();
             }
-            // Forward requests
-            for (int i = 0; i < server_count; i++) {
-                (*servers[i]).forwardDeferredRequests(servers, server_count);
+            else{
+                //spdlog::info("Using Uniform distribution with lambda: {} and IAT: {}\n", lambda, granularity);
+                nextTimeDelta = (int) u.generate();
             }
-            // Process the requests on each server till the next request comes in
-            for (int i = 0; i < server_count; i++) {
-                (*servers[i]).processData(1, servers, server_count);
-                (*servers[i]).updatePendingCount();
+            spdlog::trace("next request in time {}",nextTimeDelta);
+            if (currentTime != 0) {
+                spdlog::trace("----------------------------------------");
+                spdlog::trace("\tTime elapsed {} time units", currentTime);
+                spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
+                spdlog::trace("\tCurrent response size = {}", respSize*granularity);
+                int nextServer = rand() % server_count;
+                spdlog::trace("\tMapping the request on to server #{}", nextServer);
+                (*servers[nextServer]).addRequest(currentTime, respSize*granularity, -1, -1);
+                spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
             }
-            currentTime++;
-            if (currentTime == checkTime) {
-                printStatistics(servers, server_count, currentTime);
-                checkTime += snapshotTime;
+            while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
+                spdlog::trace("number of requests{}", (*servers[0]).getPendingRequestCount());
+                spdlog::trace("\t\tTime elapsed {} time units", currentTime);
+                // Execute policies to forward packets via RDMA
+                for (int i = 0; i < server_count; i++) {
+                    (*servers[i]).executeForwardingPipeline(1, servers, server_count);
+                }
+                // Forward requests
+                for (int i = 0; i < server_count; i++) {
+                    (*servers[i]).forwardDeferredRequests(servers, server_count);
+                }
+                // Process the requests on each server till the next request comes in
+                for (int i = 0; i < server_count; i++) {
+                    (*servers[i]).processData(1, servers, server_count);
+                    (*servers[i]).updatePendingCount();
+                }
+                currentTime++;
+                if (currentTime == checkTime) {
+                    printStatistics(servers, server_count, currentTime, iteration);
+                    checkTime += snapshotTime;
+                }
             }
         }
+        spdlog::trace("---- ONE ITERATION OF SIMULATION ENDS----");
     }
-    spdlog::trace("----SIMULATION ENDS----");
     return 0;
 }
