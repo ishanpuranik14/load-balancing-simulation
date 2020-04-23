@@ -223,7 +223,7 @@ void Server::forwardDeferredRequests(Server **servers, int server_count) {
 
 void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count) {
     // Execute the when, what and where policies keeping in mind the timeUnits
-    int when_policy = -1;  // Use this to control the when policy
+    int when_policy = 0;  // Use this to control the when policy
     int what_policy = 0;  // Use this to control the what policy
     int where_policy = 0; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);

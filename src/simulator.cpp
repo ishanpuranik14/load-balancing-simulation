@@ -133,14 +133,14 @@ int main(int argc, char **argv) {
     if (remove(overallStats) != 0) {
         spdlog::error("Couldn't delete server stat file");
     }
-    const int server_count = 1;
-    long long alpha[server_count] = {alp};
+    const int server_count = 2;
+    long long alpha[server_count] = {alp, alp};
     Server *servers[server_count];
     spdlog::trace("Simulation parameters");
     spdlog::trace("Simulation time: {}", maxSimulationTime);
     spdlog::trace("Number of server: {}", server_count);
-//    Poisson p = Poisson(lambda/4096);
-    Uniform u = Uniform(8192, lambda);
+//    Poisson u = Poisson(lambda/4096);
+    Uniform u = Uniform(1, lambda);
     for (int i = 0; i < server_count; i++) {
         servers[i] = new Server(alpha[i], i, 0);
     }
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
             spdlog::trace("\tTime elapsed {} time units", currentTime);
             spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
             spdlog::trace("\tCurrent response size = {}", respSize);
-            int nextServer = rand() % server_count;
+            int nextServer = 0;//rand() % server_count;
             spdlog::trace("\tMapping the request on to server #{}", nextServer);
             (*servers[nextServer]).addRequest(currentTime, respSize, -1, -1);
             spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
