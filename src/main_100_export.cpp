@@ -32,6 +32,7 @@ int main()
     outfile.open("poission.csv", ios::out);
     for (auto& key: keys) {
         outfile << key << ", " << freqs[key] << "\n";
+        outfile.flush();
     }
     outfile.close();
     return 0;
