@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
             spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
         }
         while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
-            spdlog::trace("number of requests{}", (*servers[0]).getPendingRequestCount());
+            spdlog::trace("number of requests: {}", (*servers[0]).getPendingRequestCount());
             spdlog::trace("\t\tTime elapsed {} time units", currentTime);
             // Execute policies to forward packets via RDMA
             for (int i = 0; i < server_count; i++) {

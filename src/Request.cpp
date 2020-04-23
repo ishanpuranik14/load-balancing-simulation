@@ -5,8 +5,8 @@
 long long reqIdGen = 0;
 
 Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
-    spdlog::trace("\tCreated the current request with ID: {}", reqId);
     reqId = reqIdGen++;
+    spdlog::trace("\tCreated the current request with ID: {}", reqId);
     this->timestamp = timestamp;
     this->reqSize = reqSize;
     this->respSize = respSize;//(int) floor(generate_random_number(200, 500));

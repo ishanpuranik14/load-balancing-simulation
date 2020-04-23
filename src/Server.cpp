@@ -66,7 +66,7 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
     Use the when policy to determine whether to forward any request(s)
     */
     bool time_to_forward = false;
-    long double policy_0_threshold = 1.5;
+    long double policy_0_threshold = 0.75;
     spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
     switch (policyNum) {
         case -1:
@@ -106,7 +106,7 @@ std::vector<Request> Server::whatPolicy(int policyNum, int timeDelta, Server **s
             switch (policyNum) {
                 case 0:
                     // forward the ones whose size > avg
-                    if (cur.getRespSize() > avgRespSize) {
+                    if (cur.getRespSize() >= avgRespSize) {
                         spdlog::trace("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
                         requestsToBeForwarded.push_back(cur);
                     }
