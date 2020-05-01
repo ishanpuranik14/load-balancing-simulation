@@ -147,22 +147,20 @@ int main(int argc, char **argv) {
         }
         long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
         long double checkTime = snapshotTime;
-        spdlog::info("server count:{}",server_count);
-        spdlog::info("  granularity:{}",granularity);
-        spdlog::info("  lambda:{}",lambda);
-        spdlog::info("  respSize:{}",respSize);
-        spdlog::info("  maxSimulationTime:{}",maxSimulationTime);
-        spdlog::info("  snapshotInterval:{}",snapshotInterval);
-        spdlog::info("  distrbution:{}",dist);
-        spdlog::info(" alpha_values: ");
+        spdlog::info("Simulation parameters");
+        spdlog::info("\tserver count:\t{}",server_count);
+        spdlog::info("\tgranularity:\t{}",granularity);
+        spdlog::info("\tlambda:\t{}",lambda);
+        spdlog::info("\trespSize:\t{}",respSize);
+        spdlog::info("\tmaxSimulationTime:\t{}",maxSimulationTime);
+        spdlog::info("\tsnapshotInterval:\t{}",snapshotInterval);
+        spdlog::info("\tdistrbution:\t{}",dist);
+        spdlog::info("\talpha_values:");
         for (int i = 0; i<server_count;i++){
-            spdlog::info("{} ",alpha[i]);
+            spdlog::info("\t\t{}",alpha[i]);
         }
-        cout<<endl;
+        spdlog::info("");
         Server *servers[server_count];
-        spdlog::trace("Simulation parameters");
-        spdlog::trace("Simulation time: {}", maxSimulationTime);
-        spdlog::trace("Number of server: {}", server_count);
         Poisson p = Poisson(lambda,granularity);
         Uniform u = Uniform(lambda,granularity);
         for (int i = 0; i < server_count; i++) {
@@ -216,7 +214,8 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        spdlog::trace("---- ONE ITERATION OF SIMULATION ENDS----");
+        spdlog::info("---- ONE ITERATION OF SIMULATION ENDS----");
+        spdlog::info("------------------------------------------------------------------------------------------------");
     }
     return 0;
 }
