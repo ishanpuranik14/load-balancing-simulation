@@ -5,11 +5,11 @@
 
 class Uniform : public Generator {
 private:
-    double iat;
+    int iat;
     int lambda;
     int counter;
 public:
-    explicit Uniform(double iat, int lambda);
+    explicit Uniform(int lambda, int iat);
 
     double generate();
 };
