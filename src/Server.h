@@ -37,7 +37,7 @@ public:
 
     long double calculateUtilization();
 
-    void addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp);
+    void addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp, long long id);
 
     void updatePendingCount();
 

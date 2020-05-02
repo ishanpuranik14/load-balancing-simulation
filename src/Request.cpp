@@ -3,8 +3,12 @@
 #include "Request.h"
 long long reqIdGen = 0;
 
-Request::Request(long double timestamp, int reqSize, int sentBy,int respSize) {
-    reqId = reqIdGen++;
+Request::Request(long double timestamp, int reqSize, int sentBy, int respSize, long long id) {
+    if(id == -1){
+        reqId = reqIdGen++;
+    } else {
+        reqId = id;
+    }
     spdlog::trace("\tCreated the current request with ID: {}", reqId);
     this->timestamp = timestamp;
     this->reqSize = reqSize;

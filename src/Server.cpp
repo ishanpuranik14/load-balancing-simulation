@@ -41,8 +41,8 @@ long double Server::calculateUtilization() {
 }
 
 // Called during creation and forwarding requests
-void Server::addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp) {
-    Request x = Request(timestamp, 1, sentBy, respSize);
+void Server::addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp, long long id) {
+    Request x = Request(timestamp, 1, sentBy, respSize, id);
     x.updateForwardingTimestamp(forwardingTimestamp);
     reqQueue.push(x);
 
@@ -212,7 +212,7 @@ void Server::forwardRequest(int send_to, Request request, Server **servers, int 
     }
     // Add the request in the reciever's queue
     // Update the relevant stats as you send stuff
-    (*servers[send_to]).addRequest(request.getTimestamp(), request.getRespSize(), server_no, currentTime);
+    (*servers[send_to]).addRequest(request.getTimestamp(), request.getRespSize(), server_no, currentTime, request.getReqId());
 }
 
 void Server::forwardDeferredRequests(Server **servers, int server_count) {
@@ -241,7 +241,7 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
             int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
             if (send_to != server_no && send_to != -1) {
                 num_requests_forwarded++;
-                spdlog::trace("\t\tServer #{} will forward the requestID: {} to the server#: ", server_no,
+                spdlog::trace("\t\tServer #{} will forward the requestID: {} to the server#: {}", server_no,
                               requestsToBeForwarded[i].getReqId(), send_to);
                 // Put in queue so that it can be forwarded once every server has executed the pipeline
                 deferredRequests.push(std::make_pair(send_to, requestsToBeForwarded[i]));
