@@ -145,6 +145,14 @@ int main(int argc, char **argv) {
             alpha[count] = stoll(word);
             count++;
         }
+        // If only 1 alpha was specified
+        if(count == 1){
+            long long alpha_value = alpha[count-1];
+            while(count <= server_count){
+                alpha[count] = alpha_value;
+                count++;
+            }
+        }
         long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
         long double checkTime = snapshotTime;
         spdlog::info("Simulation parameters");
