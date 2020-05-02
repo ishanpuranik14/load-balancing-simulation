@@ -197,6 +197,8 @@ void Server::removeRequest(Request requestToBeRemoved) {
         if (cur.getReqId() != requestToBeRemoved.getReqId()) {
             // Add to the back of the queue
             reqQueue.push(cur);
+        } else {
+            stats.decrementPendingReqCount();
         }
     }
 }
