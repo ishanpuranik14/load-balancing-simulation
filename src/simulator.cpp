@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
                 spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
                 spdlog::trace("\tCurrent response size = {}", respSize*granularity);
-                int nextServer = 0; //rand() % server_count;
+                int nextServer = rand() % server_count;
                 spdlog::trace("\tMapping the request on to server #{}", nextServer);
                 (*servers[nextServer]).addRequest(currentTime, respSize*granularity, -1, -1, -1);
                 spdlog::trace("number of requests pending for server {}:\t{}", nextServer, (*servers[nextServer]).getPendingRequestCount());

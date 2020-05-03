@@ -44,7 +44,7 @@ long double Server::calculateUtilization() {
 void Server::addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp, long long id) {
     Request x = Request(timestamp, 1, sentBy, respSize, id);
     x.updateForwardingTimestamp(forwardingTimestamp);
-    reqQueue.push(x);
+    reqQueue.push_back(x);
 
     stats.incrementPendingReqCount();
     stats.setTotalReqs(stats.getTotalReqs() + 1);
@@ -86,18 +86,16 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
     return time_to_forward;
 }
 
-std::vector<Request> Server::whatPolicy(int policyNum, int timeDelta, Server **servers, int server_count) {
+std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int timeDelta, Server **servers, int server_count) {
     /*
     Use the what policy to determine which request(s) to forward
     */
-    std::vector<Request> requestsToBeForwarded;
+    std::vector<std::_List_iterator<Request>> requestsToBeForwarded;
     // Go thru all the requests
-    long long numRequests = getPendingRequestCount();
     spdlog::trace("\t\t\tWhat policy #{}:", policyNum);
     spdlog::trace("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
-    while (numRequests--) {
-        // Get the request
-        Request &cur = reqQueue.front();
+    for (auto it=reqQueue.begin(); it != reqQueue.end(); ++it) {
+        auto cur = *it;
         spdlog::trace("\t\t\t\tConsidering RequestID: {} with response size: {} and pending size: {}", cur.getReqId(),
                       cur.getRespSize(), cur.getPendingSize());
         // Dont consider partially processed/ forwarded requests
@@ -108,7 +106,7 @@ std::vector<Request> Server::whatPolicy(int policyNum, int timeDelta, Server **s
                     // forward the ones whose size > avg
                     if (cur.getRespSize() >= avgRespSize) {
                         spdlog::trace("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
-                        requestsToBeForwarded.push_back(cur);
+                        requestsToBeForwarded.push_back(it);
                     }
                     break;
 
@@ -116,9 +114,6 @@ std::vector<Request> Server::whatPolicy(int policyNum, int timeDelta, Server **s
                     break;
             }
         }
-        // Add to the back of the queue
-        reqQueue.pop();
-        reqQueue.push(cur);
     }
     return requestsToBeForwarded;
 }
@@ -186,40 +181,28 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
     return send_to;
 }
 
-// TODO update any counters
-void Server::removeRequest(Request requestToBeRemoved) {
-    long long numRequests = getPendingRequestCount();
-    while (numRequests--) {
-        // Get the request
-        Request &cur = reqQueue.front();
-        reqQueue.pop();
-        // Ignore if this is the one to be removed
-        if (cur.getReqId() != requestToBeRemoved.getReqId()) {
-            // Add to the back of the queue
-            reqQueue.push(cur);
-        } else {
-            stats.decrementPendingReqCount();
-        }
-    }
+void Server::removeRequest(std::_List_iterator<Request> requestIter) {
+    reqQueue.erase(requestIter);
+    stats.decrementPendingReqCount();
 }
 
-void Server::forwardRequest(int send_to, Request request, Server **servers, int server_count,
+void Server::forwardRequest(int send_to, std::_List_iterator<Request> requestIter, Server **servers, int server_count,
                             bool removeRequestFromQueue) {
     // purge the request fm the queue
-    if (removeRequestFromQueue) {
-        removeRequest(request);
-        stats.decrementPendingReqCount();
-    }
     // Add the request in the reciever's queue
-    // Update the relevant stats as you send stuff
+    auto request = *requestIter;
     (*servers[send_to]).addRequest(request.getTimestamp(), request.getRespSize(), server_no, currentTime, request.getReqId());
+
+    if (removeRequestFromQueue) {
+        removeRequest(requestIter);
+    }
 }
 
 void Server::forwardDeferredRequests(Server **servers, int server_count) {
     while (!deferredRequests.empty()) {
         auto forwardingInfo = deferredRequests.front();
-        deferredRequests.pop();
-        forwardRequest(forwardingInfo.first, forwardingInfo.second, servers, server_count, false);
+        forwardRequest(forwardingInfo.first, forwardingInfo.second, servers, server_count, true);
+        deferredRequests.pop_front();
     }
 }
 
@@ -229,28 +212,26 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
     int what_policy = 0;  // Use this to control the what policy
     int where_policy = 0; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
-    while (whenPolicy(when_policy, timeDelta, servers, server_count)) {
+    if (whenPolicy(when_policy, timeDelta, servers, server_count)) {
         int num_requests_forwarded = 0;
         spdlog::trace("\t\tServer #{} will execute the what policy", server_no);
         // Go thru and execute the what policy till it becomes inapplicable
-        std::vector<Request> requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
+        auto requestsToBeForwarded = whatPolicy(what_policy, timeDelta, servers, server_count);
         // Forward each request using the where policy
-        for (long long i = 0; i < requestsToBeForwarded.size(); i++) {
+        // Iterating in reverse because we remove requests based on index
+        for (auto requestIter=requestsToBeForwarded.rbegin(); requestIter != requestsToBeForwarded.rend(); ++requestIter) {
+            auto request = *(*requestIter);
             spdlog::trace("\t\tServer #{} will execute the where policy for requestID: {}", server_no,
-                          requestsToBeForwarded[i].getReqId());
-            int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, requestsToBeForwarded[i]);
+                          request.getReqId());
+            int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, request);
             if (send_to != server_no && send_to != -1) {
                 num_requests_forwarded++;
                 spdlog::trace("\t\tServer #{} will forward the requestID: {} to the server#: {}", server_no,
-                              requestsToBeForwarded[i].getReqId(), send_to);
+                              request.getReqId(), send_to);
                 // Put in queue so that it can be forwarded once every server has executed the pipeline
-                deferredRequests.push(std::make_pair(send_to, requestsToBeForwarded[i]));
-                // purge the request fm the queue
-                removeRequest(requestsToBeForwarded[i]);
+                deferredRequests.push_front(std::make_pair(send_to, *requestIter));
             }
         }
-        if (!num_requests_forwarded)
-            break;
     }
 }
 
@@ -287,7 +268,7 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
                     "\t\t\t Else condition: Going to pop!! Server #{} processed {} / {} bytes of response for request #{}",
                     server_no,
                     (cur.getRespSize() - cur.getPendingSize()), cur.getRespSize(), cur.getReqId());
-            reqQueue.pop();
+            reqQueue.pop_front();
             stats.decrementPendingReqCount();
             bytesProcessedInDelta += pendingSize;
             long double timestamp = currentTime + ((long double) bytesProcessedInDelta) /

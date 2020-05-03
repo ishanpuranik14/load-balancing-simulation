@@ -12,9 +12,9 @@ class Server {
     int server_no;
 
     long double avgRespSize, utilization;
-    std::queue<Request> reqQueue;
+    std::list<Request> reqQueue;
 
-    std::queue<std::pair<int, Request>> deferredRequests;
+    std::deque<std::pair<int, std::_List_iterator<Request>>> deferredRequests;
     Stats stats;
 
     long long totalReqs;
@@ -43,13 +43,13 @@ public:
 
     bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 
-    std::vector<Request> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
+    std::vector<std::_List_iterator<Request>> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 
     int wherePolicy(int policyNum, int timeDelta, Server *servers[], int server_count, Request requestToBeForwarded);
 
-    void removeRequest(Request requestToBeRemoved);
+    void removeRequest(std::_List_iterator<Request> requestIter);
 
-    void forwardRequest(int send_to, Request requestToBeForwarded, Server *servers[], int server_count,
+    void forwardRequest(int send_to, std::_List_iterator<Request> requestIter, Server *servers[], int server_count,
                         bool removeRequestFromQueue = true);
 
     void forwardDeferredRequests(Server *servers[], int server_count);
