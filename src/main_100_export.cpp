@@ -10,7 +10,7 @@ int main()
     unordered_map<int, int> freqs;
     std::vector<double> keys;
 
-    Poisson p = Poisson(1.0/2.0);
+    Poisson p = Poisson(0.5/4096);
     int num_iterations = 10000000;
     double sum = 0;
     for (int i = 0; i < num_iterations; i++)

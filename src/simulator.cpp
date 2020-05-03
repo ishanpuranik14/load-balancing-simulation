@@ -145,24 +145,30 @@ int main(int argc, char **argv) {
             alpha[count] = stoll(word);
             count++;
         }
+        // If only 1 alpha was specified
+        if(count == 1){
+            long long alpha_value = alpha[count-1];
+            while(count <= server_count){
+                alpha[count] = alpha_value;
+                count++;
+            }
+        }
         long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
         long double checkTime = snapshotTime;
-        spdlog::info("server count:{}",server_count);
-        spdlog::info("  granularity:{}",granularity);
-        spdlog::info("  lambda:{}",lambda);
-        spdlog::info("  respSize:{}",respSize);
-        spdlog::info("  maxSimulationTime:{}",maxSimulationTime);
-        spdlog::info("  snapshotInterval:{}",snapshotInterval);
-        spdlog::info("  distrbution:{}",dist);
-        spdlog::info(" alpha_values: ");
+        spdlog::info("Simulation parameters");
+        spdlog::info("\tserver count:\t{}",server_count);
+        spdlog::info("\tgranularity:\t{}",granularity);
+        spdlog::info("\tlambda:\t{}",lambda);
+        spdlog::info("\trespSize:\t{}",respSize);
+        spdlog::info("\tmaxSimulationTime:\t{}",maxSimulationTime);
+        spdlog::info("\tsnapshotInterval:\t{}",snapshotInterval);
+        spdlog::info("\tdistrbution:\t{}",dist);
+        spdlog::info("\talpha_values:");
         for (int i = 0; i<server_count;i++){
-            spdlog::info("{} ",alpha[i]);
+            spdlog::info("\t\t{}",alpha[i]);
         }
-        cout<<endl;
+        spdlog::info("");
         Server *servers[server_count];
-        spdlog::trace("Simulation parameters");
-        spdlog::trace("Simulation time: {}", maxSimulationTime);
-        spdlog::trace("Number of server: {}", server_count);
         Poisson p = Poisson(lambda,granularity);
         Uniform u = Uniform(lambda,granularity);
         for (int i = 0; i < server_count; i++) {
@@ -182,7 +188,6 @@ int main(int argc, char **argv) {
                 //spdlog::info("Using Uniform distribution with lambda: {} and IAT: {}\n", lambda, granularity);
                 nextTimeDelta = (int) u.generate();
             }
-            spdlog::trace("next request in time {}",nextTimeDelta);
             if (currentTime != 0) {
                 spdlog::trace("----------------------------------------");
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
@@ -190,14 +195,14 @@ int main(int argc, char **argv) {
                 spdlog::trace("\tCurrent response size = {}", respSize*granularity);
                 int nextServer = rand() % server_count;
                 spdlog::trace("\tMapping the request on to server #{}", nextServer);
-                (*servers[nextServer]).addRequest(currentTime, respSize*granularity, -1, -1);
-                spdlog::trace("number of requests{}", (*servers[nextServer]).getPendingRequestCount());
+                (*servers[nextServer]).addRequest(currentTime, respSize*granularity, -1, -1, -1);
+                spdlog::trace("number of requests pending for server {}:\t{}", nextServer, (*servers[nextServer]).getPendingRequestCount());
             }
             while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
-                spdlog::trace("number of requests{}", (*servers[0]).getPendingRequestCount());
                 spdlog::trace("\t\tTime elapsed {} time units", currentTime);
                 // Execute policies to forward packets via RDMA
                 for (int i = 0; i < server_count; i++) {
+                    spdlog::trace("number of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
                     (*servers[i]).executeForwardingPipeline(1, servers, server_count);
                 }
                 // Forward requests
@@ -216,7 +221,8 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        spdlog::trace("---- ONE ITERATION OF SIMULATION ENDS----");
+        spdlog::info("---- ONE ITERATION OF SIMULATION ENDS----");
+        spdlog::info("------------------------------------------------------------------------------------------------");
     }
     return 0;
 }
