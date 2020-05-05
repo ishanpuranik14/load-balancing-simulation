@@ -3,7 +3,6 @@
 
 Server::Server(long long alpha, int server_no, long double startStatCollectionFrom) : stats(startStatCollectionFrom) {
     // Initializations
-    utilization = 0.0;
     avgRespSize = 0.0;
     totalFullyProcessedBytes = 0;
     this->alpha = alpha;
@@ -19,8 +18,12 @@ long long Server::getAlpha() {
     return alpha;
 }
 
-long double Server::getUtilization() {
-    return utilization;
+long double Server::getUtilization(bool historic=false) {
+    if(historic){
+        return utilizations.front();
+    } else {
+        return calculateUtilization();
+    }
 }
 
 long long Server::getPendingRequestCount() {
@@ -31,6 +34,14 @@ long long Server::getPendingRequestSize() {
     return pendingReqSize;
 }
 
+long double Server::getServerLoad(bool historic=false){
+    if(historic){
+        return loads.front();
+    } else {
+        return ((double)getPendingRequestSize())/alpha;
+    }
+}
+
 void Server::setPendingRequestSize(long long i) {
     pendingReqSize = i;
     stats.setPendingRequestSize(i);
@@ -38,6 +49,19 @@ void Server::setPendingRequestSize(long long i) {
 
 long double Server::calculateUtilization() {
     return (long double) totalFullyProcessedBytes / (alpha * currentTime);
+}
+
+void Server::storeHistoricData(long timeUnits){
+    // Add utilization
+    utilizations.push_back(calculateUtilization());
+    if(utilizations.size() > timeUnits){
+        utilizations.pop_front();
+    }
+    // Add load
+    loads.push_back(getServerLoad());
+    if(loads.size() > timeUnits){
+        loads.pop_front();
+    }
 }
 
 // Called during creation and forwarding requests
@@ -61,25 +85,66 @@ void Server::updatePendingCount() {
     stats.setCumulativePendingCount(stats.getCumulativePendingCount() + getPendingRequestCount());
 }
 
-bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count) {
+bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count, std::deque<int> &requestTimeDeltas) {
     /*
     Use the when policy to determine whether to forward any request(s)
     */
     bool time_to_forward = false;
-    long double policy_0_threshold = 0.75;
+    long policy_2_time_units = 10;      // TODO: make it granularity aware
+    double serverLoad;
+    long double policy_0_threshold = 0.75, policy_1_threshold = 1.5, policy_2_threshold = 1.5;
+    std::deque<int> seenTimeDeltas;
     spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
     switch (policyNum) {
         case -1:
             break;
-        case 0:
+        case 0: {
             // Using utilization
-            this->utilization = calculateUtilization();
+            long double utilization = getUtilization();
             spdlog::trace("\t\t\t\tServer #{} | utilization: {} | threshold: {}", server_no, utilization,
                           policy_0_threshold);
-            if (this->utilization > policy_0_threshold) {
+            if (utilization > policy_0_threshold) {
                 time_to_forward = true;
             }
             break;
+        }
+        case 1: {
+            // Using the pending request queue size as a proportion of current processing capacity
+            // To take care of tails
+            serverLoad = getServerLoad();
+            spdlog::trace("\t\t\t\tServer #{} | server load: {} | threshold: {}", server_no, serverLoad, policy_1_threshold);
+            if(serverLoad > policy_1_threshold){
+                time_to_forward = true;
+            }
+            break;
+        }
+        case 2: {
+            // Proactively assessing server load after a given time and taking preventive measures
+            int currentDelta;
+            long t = 0;
+            long long forecastedPendingCount = reqQueue.size();
+            // Go thru the time deltas to compute pending size till minimum(available time deltas, desired time gets elapsed)
+            // We should never run out available time deltas. the queue needs to be populated enough
+            while(!requestTimeDeltas.empty() && (t + (currentDelta = requestTimeDeltas.front())) <= policy_2_time_units){
+                t += currentDelta;
+                requestTimeDeltas.pop_front();
+                seenTimeDeltas.push_back(currentDelta);
+                // update counts
+                forecastedPendingCount++;
+            }
+            // Put all requests back in the original queue
+            while(!seenTimeDeltas.empty()){
+                requestTimeDeltas.push_front(seenTimeDeltas.back());
+                seenTimeDeltas.pop_back();
+            }
+            // use the ratio (The subtraction takes care of requests processed in policy_2_time_units)
+            serverLoad = ((double)((forecastedPendingCount)*avgRespSize)/(double)alpha) - policy_2_time_units;
+            spdlog::trace("\t\t\t\tServer #{} | forecasted server load: {} | threshold: {}", server_no, serverLoad, policy_2_threshold);
+            if(serverLoad > policy_2_threshold){
+                time_to_forward = true;
+            }
+            break;
+        }
         default:
             break;
     }
@@ -91,6 +156,7 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
     Use the what policy to determine which request(s) to forward
     */
     std::vector<std::_List_iterator<Request>> requestsToBeForwarded;
+    int policy_1_fraction = 0.2;
     // Go thru all the requests
     spdlog::trace("\t\t\tWhat policy #{}:", policyNum);
     spdlog::trace("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
@@ -102,18 +168,27 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
         if (cur.getRespSize() == cur.getPendingSize() && cur.getSentBy() == -1) {
             // Apply the policy
             switch (policyNum) {
-                case 0:
+                case 0: {
                     // forward the ones whose size > avg
                     if (cur.getRespSize() >= avgRespSize) {
                         spdlog::trace("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
                         requestsToBeForwarded.push_back(it);
                     }
                     break;
-
+                }
                 default:
                     break;
             }
         }
+    }
+    switch (policyNum){
+        // Slice the vector, to limit the number of requests being forwarded. NOTE: makes sense for lambda > mu. probably not for mu > lambda
+        case 1: {
+            spdlog::trace("\t\t\t\t\tConsidering only {} percent of eligible requests", policy_1_fraction*100);
+            return std::vector<std::_List_iterator<Request>>(requestsToBeForwarded.begin(), requestsToBeForwarded.begin() + (int)(policy_1_fraction*requestsToBeForwarded.size()));
+        }
+        default:
+            break;
     }
     return requestsToBeForwarded;
 }
@@ -125,23 +200,25 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
     */
     // TODO include alpha while computing load
     int send_to = server_no;               // Use this to determine whom to send the request to
-    long long least_load;                       // Use this to store the load of the server chosen
+    long double least_load;                       // Use this to store the load of the server chosen
     std::vector<int> randomly_selected_servers; // Use this for Power of k
     int k = 2;                             // Use this to play with Power of k
     spdlog::trace("\t\t\tWhere Policy #{} executing switch", policyNum);
     switch (policyNum) {
-        case 0:
+        case 0: {
             /* next server */
             send_to = (server_no + 1) % server_count;
-            least_load = (*servers[send_to]).getPendingRequestSize();
+            least_load = (*servers[send_to]).getServerLoad();
             break;
-        case 1:
+        }
+        case 1: {
             /* least loaded */
-            least_load = (*servers[(server_no + 1) % server_count]).getPendingRequestSize();
+            least_load = (*servers[(server_no + 1) % server_count]).getServerLoad();
             send_to = (server_no + 1) % server_count;
             for (int i = 0; i < server_count; i++) {
                 if (i != server_no) {
-                    long long load = (*servers[i]).getPendingRequestSize();
+                    long long load = (*servers[i]).getServerLoad();
+                    spdlog::trace("\t\t\t\tFor least loaded, Comparing the load of server #{}, load: {}", i, load);
                     if (load < least_load) {
                         least_load = load;
                         send_to = i;
@@ -149,31 +226,36 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
                 }
             }
             break;
-        case 2:
+        }
+        case 2: {
             /* Power of k */
             least_load = LONG_MAX;
-            int randomly_selected_server;
-            for (int i = 0; i < k; i++) {
-                randomly_selected_server = rand() % server_count;
-                // Regenerate if redundant
-                while (randomly_selected_server == server_no ||
-                       (find(randomly_selected_servers.begin(), randomly_selected_servers.end(),
-                             randomly_selected_server) != randomly_selected_servers.end())) {
+            if(server_count>k){    
+                int randomly_selected_server;
+                for (int i = 0; i < k; i++) {
                     randomly_selected_server = rand() % server_count;
-                }
-                randomly_selected_servers.push_back(randomly_selected_server);
-                long load = (*servers[randomly_selected_server]).getPendingRequestSize();
-                if (load < least_load) {
-                    least_load = load;
-                    send_to = randomly_selected_server;
+                    // Regenerate if redundant
+                    while (randomly_selected_server == server_no ||
+                        (find(randomly_selected_servers.begin(), randomly_selected_servers.end(),
+                                randomly_selected_server) != randomly_selected_servers.end())) {
+                        randomly_selected_server = rand() % server_count;
+                    }
+                    randomly_selected_servers.push_back(randomly_selected_server);
+                    long load = (*servers[randomly_selected_server]).getServerLoad();
+                    spdlog::trace("\t\t\t\tPower of {}, Comparing the load of server #{}, load: {}", k, randomly_selected_server, load);
+                    if (load < least_load) {
+                        least_load = load;
+                        send_to = randomly_selected_server;
+                    }
                 }
             }
             break;
+        }
         default:
             break;
     }
     // Sanity check so as to not forward requests to other servers with higher load
-    if (least_load > getPendingRequestSize()) {
+    if (least_load > getServerLoad()) {
         return -1;
     }
     spdlog::trace("\t\t\tWhere policy #{}: the least load is for {} and is equal to {} bytes", policyNum, send_to,
@@ -206,13 +288,13 @@ void Server::forwardDeferredRequests(Server **servers, int server_count) {
     }
 }
 
-void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count) {
+void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count, std::deque<int> &requestTimeDeltas) {
     // Execute the when, what and where policies keeping in mind the timeUnits
     int when_policy = 0;  // Use this to control the when policy
     int what_policy = 0;  // Use this to control the what policy
     int where_policy = 0; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
-    if (whenPolicy(when_policy, timeDelta, servers, server_count)) {
+    if (whenPolicy(when_policy, timeDelta, servers, server_count, requestTimeDeltas)) {
         int num_requests_forwarded = 0;
         spdlog::trace("\t\tServer #{} will execute the what policy", server_no);
         // Go thru and execute the what policy till it becomes inapplicable

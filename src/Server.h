@@ -11,8 +11,9 @@ class Server {
     long long alpha;
     int server_no;
 
-    long double avgRespSize, utilization;
+    long double avgRespSize;
     std::list<Request> reqQueue;
+    std::deque<long double> utilizations, loads;
 
     std::deque<std::pair<int, std::_List_iterator<Request>>> deferredRequests;
     Stats stats;
@@ -29,19 +30,23 @@ public:
 
     long long getAlpha();
 
-    long double getUtilization();
+    long double getUtilization(bool historic);
 
     long long getPendingRequestCount();
 
     long long getPendingRequestSize();
 
+    long double getServerLoad(bool historic);
+
     long double calculateUtilization();
+
+    void storeHistoricData(long timeUnits);
 
     void addRequest(long double timestamp, int respSize, int sentBy, long double forwardingTimestamp, long long id);
 
     void updatePendingCount();
 
-    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
+    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count, std::deque<int> &requestTimeDeltas);
 
     std::vector<std::_List_iterator<Request>> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 
@@ -54,7 +59,7 @@ public:
 
     void forwardDeferredRequests(Server *servers[], int server_count);
 
-    void executeForwardingPipeline(int timeDelta, Server *servers[], int server_count);
+    void executeForwardingPipeline(int timeDelta, Server *servers[], int server_count, std::deque<int> &requestTimeDeltas);
 
     void processData(int timeDelta, Server *servers[], int server_count);
 

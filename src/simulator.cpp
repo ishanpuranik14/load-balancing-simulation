@@ -118,7 +118,8 @@ int main(int argc, char **argv) {
 
     ifstream fin("config.csv");  
     int count = 0;
-    int iteration = 0;  
+    int iteration = 0;
+    deque<int> requestTimeDeltas;
     vector<string> row; 
     string line,word;
     getline(fin,line);
@@ -139,6 +140,8 @@ int main(int argc, char **argv) {
         string dist = row[7];
         long long alpha[server_count];
         int count = 0;
+        // TODO read the time from config file
+        int numRequestsForProactive = lambda * 100;
         row[2] = row[2].substr(1,row[2].length()-2);
         stringstream l(row[2]);
         while(getline(l,word,';')){
@@ -179,15 +182,18 @@ int main(int argc, char **argv) {
         spdlog::trace("----SIMULATION BEGINS----\n\n");
         while (currentTime < maxSimulationTime) {
             int t = 0;
-            int nextTimeDelta = 0;
-            if(dist == "p"){
-                //spdlog::info("Using Poisson distribution with lambda: {}\n", double(lambda*1.0/granularity*1.0));
-                nextTimeDelta = (int) p.generate();
+            // Fill in the time deltas for proactive policies, based on the distribution
+            while(requestTimeDeltas.size() <= numRequestsForProactive){
+                if(dist == "p"){
+                    requestTimeDeltas.push_back((int)p.generate());
+                }
+                else{
+                    requestTimeDeltas.push_back((int)u.generate());
+                }
             }
-            else{
-                //spdlog::info("Using Uniform distribution with lambda: {} and IAT: {}\n", lambda, granularity);
-                nextTimeDelta = (int) u.generate();
-            }
+            // Get the next time delta
+            int nextTimeDelta = requestTimeDeltas.front();
+            requestTimeDeltas.pop_front();
             if (currentTime != 0) {
                 spdlog::trace("----------------------------------------");
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
@@ -200,19 +206,24 @@ int main(int argc, char **argv) {
             }
             while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
                 spdlog::trace("\t\tTime elapsed {} time units", currentTime);
-                // Execute policies to forward packets via RDMA
-                for (int i = 0; i < server_count; i++) {
-                    spdlog::trace("number of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
-                    (*servers[i]).executeForwardingPipeline(1, servers, server_count);
-                }
-                // Forward requests
-                for (int i = 0; i < server_count; i++) {
-                    (*servers[i]).forwardDeferredRequests(servers, server_count);
+                if(((long long)currentTime)%granularity == 0){
+                    // Execute policies to forward packets via RDMA
+                    for (int i = 0; i < server_count; i++) {
+                        spdlog::trace("number of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
+                        (*servers[i]).executeForwardingPipeline(1, servers, server_count, requestTimeDeltas);
+                    }
+                    // Forward requests
+                    for (int i = 0; i < server_count; i++) {
+                        (*servers[i]).forwardDeferredRequests(servers, server_count);
+                    }
                 }
                 // Process the requests on each server till the next request comes in
                 for (int i = 0; i < server_count; i++) {
                     (*servers[i]).processData(1, servers, server_count);
                     (*servers[i]).updatePendingCount();
+                    if(((long long)currentTime)%granularity == 0){
+                        (*servers[i]).storeHistoricData(20);
+                    }
                 }
                 currentTime++;
                 if (currentTime == checkTime) {
