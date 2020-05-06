@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
                 if(((long long)currentTime)%granularity == 0){
                     // Execute policies to forward packets via RDMA
                     for (int i = 0; i < server_count; i++) {
-                        spdlog::trace("number of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
+                        spdlog::trace("\t\t\tnumber of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
                         (*servers[i]).executeForwardingPipeline(1, servers, server_count, requestTimeDeltas);
                     }
                     // Forward requests
@@ -221,8 +221,8 @@ int main(int argc, char **argv) {
                 for (int i = 0; i < server_count; i++) {
                     (*servers[i]).processData(1, servers, server_count);
                     (*servers[i]).updatePendingCount();
-                    if(((long long)currentTime)%granularity == 0){
-                        (*servers[i]).storeHistoricData(20);
+                    if(currentTime && ((long long)currentTime)%granularity == 0){
+                        (*servers[i]).storeHistoricData(5);
                     }
                 }
                 currentTime++;

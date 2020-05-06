@@ -19,6 +19,7 @@ long long Server::getAlpha() {
 }
 
 long double Server::getUtilization(bool historic=false) {
+    // TODO Read the time units for history from the config and put them as a server variable. Use that to return 0 when we dont have enough history. 
     if(historic){
         return utilizations.front();
     } else {
@@ -35,6 +36,7 @@ long long Server::getPendingRequestSize() {
 }
 
 long double Server::getServerLoad(bool historic=false){
+    // TODO Read the time units for history from the config and put them as a server variable. Use that to return 0 when we dont have enough history. 
     if(historic){
         return loads.front();
     } else {
@@ -53,12 +55,16 @@ long double Server::calculateUtilization() {
 
 void Server::storeHistoricData(long timeUnits){
     // Add utilization
-    utilizations.push_back(calculateUtilization());
+    long double utilization = calculateUtilization();
+    spdlog::trace("\t\t\tFor Server #{}, storing utilization as {}", server_no, utilization);
+    utilizations.push_back(utilization);
     if(utilizations.size() > timeUnits){
         utilizations.pop_front();
     }
     // Add load
-    loads.push_back(getServerLoad());
+    long double load = getServerLoad();
+    spdlog::trace("\t\t\tFor Server #{}, storing server load as {}", server_no, load);
+    loads.push_back(load);
     if(loads.size() > timeUnits){
         loads.pop_front();
     }
@@ -199,7 +205,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
     Use the where policy to send to the appropriate server
     */
     int send_to = server_no;               // Use this to determine whom to send the request to
-    long double least_load;                       // Use this to store the load of the server chosen
+    long double load, least_load;                       // Use this to store the load of the server chosen
     std::vector<int> randomly_selected_servers; // Use this for Power of k
     int k = 2;                             // Use this to play with Power of k
     spdlog::trace("\t\t\tWhere Policy #{} executing switch", policyNum);
@@ -216,7 +222,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
             send_to = (server_no + 1) % server_count;
             for (int i = 0; i < server_count; i++) {
                 if (i != server_no) {
-                    long long load = (*servers[i]).getServerLoad();
+                    load = (*servers[i]).getServerLoad();
                     spdlog::trace("\t\t\t\tFor least loaded, Comparing the load of server #{}, load: {}", i, load);
                     if (load < least_load) {
                         least_load = load;
@@ -240,7 +246,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
                         randomly_selected_server = rand() % server_count;
                     }
                     randomly_selected_servers.push_back(randomly_selected_server);
-                    long load = (*servers[randomly_selected_server]).getServerLoad();
+                    load = (*servers[randomly_selected_server]).getServerLoad();
                     spdlog::trace("\t\t\t\tPower of {}, Comparing the load of server #{}, load: {}", k, randomly_selected_server, load);
                     if (load < least_load) {
                         least_load = load;
