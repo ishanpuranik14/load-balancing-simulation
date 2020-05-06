@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
                 int nextServer = rand() % server_count;
                 spdlog::trace("\tMapping the request on to server #{}", nextServer);
                 (*servers[nextServer]).addRequest(currentTime, respSize*granularity, -1, -1, -1);
-                spdlog::trace("number of requests pending for server {}:\t{}", nextServer, (*servers[nextServer]).getPendingRequestCount());
+                spdlog::trace("number of requests pending for server #{}: {}", nextServer, (*servers[nextServer]).getPendingRequestCount());
             }
             while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
                 spdlog::trace("\t\tTime elapsed {} time units", currentTime);

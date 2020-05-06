@@ -156,7 +156,7 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
     Use the what policy to determine which request(s) to forward
     */
     std::vector<std::_List_iterator<Request>> requestsToBeForwarded;
-    int policy_1_fraction = 0.2;
+    double policy_1_fraction = 0.2;
     // Go thru all the requests
     spdlog::trace("\t\t\tWhat policy #{}:", policyNum);
     spdlog::trace("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
@@ -168,7 +168,7 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
         if (cur.getRespSize() == cur.getPendingSize() && cur.getSentBy() == -1) {
             // Apply the policy
             switch (policyNum) {
-                case 0: {
+                case 0: case 1: {
                     // forward the ones whose size > avg
                     if (cur.getRespSize() >= avgRespSize) {
                         spdlog::trace("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
@@ -184,8 +184,8 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
     switch (policyNum){
         // Slice the vector, to limit the number of requests being forwarded. NOTE: makes sense for lambda > mu. probably not for mu > lambda
         case 1: {
-            spdlog::trace("\t\t\t\t\tConsidering only {} percent of eligible requests", policy_1_fraction*100);
-            return std::vector<std::_List_iterator<Request>>(requestsToBeForwarded.begin(), requestsToBeForwarded.begin() + (int)(policy_1_fraction*requestsToBeForwarded.size()));
+            spdlog::trace("\t\t\t\t\tConsidering only {} eligible requests", ceil(policy_1_fraction*requestsToBeForwarded.size()));
+            return std::vector<std::_List_iterator<Request>>(requestsToBeForwarded.begin(), requestsToBeForwarded.begin() + (int)ceil(policy_1_fraction*requestsToBeForwarded.size()));
         }
         default:
             break;
@@ -198,7 +198,6 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
     /*
     Use the where policy to send to the appropriate server
     */
-    // TODO include alpha while computing load
     int send_to = server_no;               // Use this to determine whom to send the request to
     long double least_load;                       // Use this to store the load of the server chosen
     std::vector<int> randomly_selected_servers; // Use this for Power of k
@@ -264,8 +263,9 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
 }
 
 void Server::removeRequest(std::_List_iterator<Request> requestIter) {
-    reqQueue.erase(requestIter);
+    setPendingRequestSize(getPendingRequestSize() - (*requestIter).getPendingSize());
     stats.decrementPendingReqCount();
+    reqQueue.erase(requestIter);
 }
 
 void Server::forwardRequest(int send_to, std::_List_iterator<Request> requestIter, Server **servers, int server_count,
@@ -290,9 +290,9 @@ void Server::forwardDeferredRequests(Server **servers, int server_count) {
 
 void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count, std::deque<int> &requestTimeDeltas) {
     // Execute the when, what and where policies keeping in mind the timeUnits
-    int when_policy = 0;  // Use this to control the when policy
-    int what_policy = 0;  // Use this to control the what policy
-    int where_policy = 0; // Use this to control the where policy
+    int when_policy = 1;  // Use this to control the when policy
+    int what_policy = 1;  // Use this to control the what policy
+    int where_policy = 1; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
     if (whenPolicy(when_policy, timeDelta, servers, server_count, requestTimeDeltas)) {
         int num_requests_forwarded = 0;
