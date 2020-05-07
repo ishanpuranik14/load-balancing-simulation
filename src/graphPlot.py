@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import csv
 import os
 
-def plot_graph(plots):
+def plot_graph(plots,path):
     x = []
     y = []
     i = 0 #This variable is used to skip csv headers from being read
@@ -15,8 +15,12 @@ def plot_graph(plots):
     plt.xlabel('x')
     plt.ylabel('y')
     plt.title('Title')
-    plt.legend()
-    plt.show()
+    #plt.legend()
+    plt.gcf()
+    plt.draw()
+    file = "Graph.png"
+    plt.savefig(path+file)
+    plt.clf()
 
 rootDir = "/home/vikas/load-balancing-simulation/src/results/"
 for subdirs,dirs,files in os.walk(rootDir):
@@ -27,12 +31,12 @@ for subdirs,dirs,files in os.walk(rootDir):
 #to plot graphs for servers           
 with open(serverStats,'r') as csvfile:
     plots = csv.reader(csvfile, delimiter=',')
-    plot_graph(plots)
+    plot_graph(plots,serverStats)
 
 #to plot graphs for overall system
 with open(overallStats,'r') as csvfile:
     plots = csv.reader(csvfile, delimiter=',')
-    plot_graph(plots)
+    plot_graph(plots,overallStats)
 
     
             

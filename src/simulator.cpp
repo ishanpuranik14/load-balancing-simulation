@@ -42,7 +42,6 @@ void printStatistics(Server *servers[], int server_count, long double time, long
     //Creating full path Strings for the server Stats File and Overall stats file (each file is inside the directory for that iteration)
     string serverStats = s.append("/serverStats");
     string overall = o.append("/overallStats");
-    //string end = to_string(iteration).append(".csv");
     char const *serverStatsFileName = serverStats.c_str();
     char const *overallStats = overall.c_str();
 
@@ -146,7 +145,9 @@ void printStatistics(Server *servers[], int server_count, long double time, long
 
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
+    //Reading command line parameters
     for (int i =1; i<=argc; i++){
+        spdlog::info("Command Line Parameters : {}", argv[i]);
     }
     //Reading from csv config file and assigning all parameters
     string configFile(argv[1]);
