@@ -96,9 +96,9 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
     Use the when policy to determine whether to forward any request(s)
     */
     bool time_to_forward = false;
-    long policy_2_time_units = 10;      // TODO: make it granularity aware
+    long policy_2_time_units = 3;      // TODO: make it granularity aware
     double serverLoad;
-    long double policy_0_threshold = 0.75, policy_1_threshold = 1.5, policy_2_threshold = 1.5;
+    long double policy_0_threshold = 0.75, policy_1_threshold = 1.5, policy_2_threshold = 6.0;
     std::deque<int> seenTimeDeltas;
     spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
     switch (policyNum) {
@@ -131,7 +131,7 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
             long long forecastedPendingCount = reqQueue.size();
             // Go thru the time deltas to compute pending size till minimum(available time deltas, desired time gets elapsed)
             // We should never run out available time deltas. the queue needs to be populated enough
-            while(!requestTimeDeltas.empty() && (t + (currentDelta = requestTimeDeltas.front())) <= policy_2_time_units){
+            while(!requestTimeDeltas.empty() && (t + (currentDelta = requestTimeDeltas.front())) < policy_2_time_units){
                 t += currentDelta;
                 requestTimeDeltas.pop_front();
                 seenTimeDeltas.push_back(currentDelta);
@@ -145,6 +145,9 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
             }
             // use the ratio (The subtraction takes care of requests processed in policy_2_time_units)
             serverLoad = ((double)((forecastedPendingCount)*avgRespSize)/(double)alpha) - policy_2_time_units;
+            spdlog::trace("\t\t\t\tServer #{} | Forecasting for: {} time units", server_no, policy_2_time_units);
+            spdlog::trace("\t\t\t\tServer #{} | Current pending count: {} | Current Forecasted incoming: {} | Outgoing in those time units: {}", server_no, reqQueue.size(), forecastedPendingCount, (double)(policy_2_time_units*alpha)/(double)avgRespSize);
+            spdlog::trace("\t\t\t\tServer #{} | Current server load: {}", server_no, getServerLoad());
             spdlog::trace("\t\t\t\tServer #{} | forecasted server load: {} | threshold: {}", server_no, serverLoad, policy_2_threshold);
             if(serverLoad > policy_2_threshold){
                 time_to_forward = true;
