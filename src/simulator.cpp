@@ -13,12 +13,40 @@ using namespace std;
 
 std::ofstream outputFile;
 int prev_iteration = 0;
+
+//function to check if a directory for stats of current iteration already exists
+int dirExists(const char *path)
+{
+    struct stat info;
+    if(stat( path, &info ) != 0)
+        return 0;
+    else if(info.st_mode & S_IFDIR)
+        return 1;
+    else
+        return 0;
+}
+
 void printStatistics(Server *servers[], int server_count, long double time, long iteration) {
-    string serverStats = "serverStats_";
-    string overall = "overallStats_";
-    string end = to_string(iteration).append(".csv");
-    char const *serverStatsFileName = (serverStats.append(end)).c_str();
-    char const *overallStats = (overall.append(end)).c_str();
+    string folderStart = "/home/vikas/load-balancing-simulation/src/results/iteration_";
+
+    //Defining Folder Name for each iteration
+    char const *folderName = (folderStart.append(to_string(iteration))).c_str();
+    //Creating new Folder for that iteration if it does not exist
+    if(dirExists(folderName) == 0){
+        mkdir(folderName,0777);
+    }
+    //Converting folderName to a string type to use it to create the path string for files
+    string s(folderName);
+    string o(folderName);
+
+    //Creating full path Strings for the server Stats File and Overall stats file (each file is inside the directory for that iteration)
+    string serverStats = s.append("/serverStats");
+    string overall = o.append("/overallStats");
+    //string end = to_string(iteration).append(".csv");
+    char const *serverStatsFileName = serverStats.c_str();
+    char const *overallStats = overall.c_str();
+
+    //To check if file already exists for this iteration from a previous program run, deleting if it exists 
     if(iteration!=prev_iteration){
         if (remove(serverStatsFileName) != 0) {
             spdlog::error("Couldn't delete server stat file");
@@ -27,12 +55,16 @@ void printStatistics(Server *servers[], int server_count, long double time, long
             spdlog::error("Couldn't delete server stat file");
         }
     }
+
     spdlog::info("");
     spdlog::info("----STATISTICS----");
     spdlog::info("");
     spdlog::info("Per server");
 
+    //To check if serverStatsFile for that iteration already exists
     ifstream infile(serverStatsFileName);
+
+    //If it does not exist creating a new file inside the folder for that iteration
     if (!infile.good()) {
         outputFile.open(serverStatsFileName);
         outputFile << "Time" << "," << "Server_no" << "," << "Pending_Requests" << "," << "Pending_req_size" << ","
@@ -46,6 +78,8 @@ void printStatistics(Server *servers[], int server_count, long double time, long
                    << "," << "Consolidated average # requests in system" << endl;
         outputFile.close();
     }
+
+    //If serverStatsFile exists, appending to that file
     outputFile.open(serverStatsFileName, std::ios_base::app);
 
     long long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0;
@@ -112,11 +146,11 @@ void printStatistics(Server *servers[], int server_count, long double time, long
 
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
-    //Delete Stat file
-
-    //Reading from csv confif file and assigning all parameters
-
-    ifstream fin("config.csv");  
+    for (int i =1; i<=argc; i++){
+    }
+    //Reading from csv config file and assigning all parameters
+    string configFile(argv[1]);
+    ifstream fin((configFile.append(".csv")).c_str());  
     int count = 0;
     int iteration = 0;  
     vector<string> row; 
@@ -137,6 +171,7 @@ int main(int argc, char **argv) {
         long double maxSimulationTime = stold(row[4])*granularity;
         long double snapshotInterval = stold(row[5]);
         string dist = row[7];
+        long numRequestsForProactive = stoi(row[8]);
         long long alpha[server_count];
         int count = 0;
         row[2] = row[2].substr(1,row[2].length()-2);
