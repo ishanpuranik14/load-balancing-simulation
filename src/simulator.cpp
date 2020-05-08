@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
         } 
         int server_count = stoi(row[1]);
         int granularity = stoi(row[6]);
-        int lambda = stoi(row[0]);
+        double lambda = stod(row[0]);
         row[3] = row[3].substr(1,row[3].length()-2);
         stringstream r(row[3]);
         int c = 0;

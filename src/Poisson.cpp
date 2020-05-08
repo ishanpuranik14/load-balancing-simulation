@@ -2,7 +2,7 @@
 #include <bits/stdc++.h>
 #include "spdlog/spdlog.h"
 
-Poisson::Poisson(int lambda,int granularity) : Generator()
+Poisson::Poisson(double lambda,int granularity) : Generator()
 {
     this->lambda = lambda;
     this->granularity = granularity;
@@ -11,7 +11,7 @@ Poisson::Poisson(int lambda,int granularity) : Generator()
 
 double Poisson::generate()
 {
-    return -logf(1.0f - generate_random_number(0, 1)) / double(lambda*1.0/granularity*1.0);
+    return -logf(1.0f - generate_random_number(0, 1)) / double(lambda/granularity*1.0);
     // double L = exp(-(this->mean)), k=0, p=1;
     // do{
     //     k += 1;

@@ -4,10 +4,10 @@
 
     class Poisson:public Generator{
         private:
-            int lambda;
+            double lambda;
             int granularity;
         public:
-            Poisson(int lambda,int granularity);
+            Poisson(double lambda,int granularity);
             double generate();
     };
 #endif
