@@ -304,14 +304,15 @@ int main(int argc, char **argv) {
         spdlog::trace("----SIMULATION BEGINS----\n\n");
         while (currentTime < maxSimulationTime) {
             int t = 0;
-            // Fill in the request specs for proactive policies, based on the distribution
-            int nextServer = rand() % server_count;
-            if (respSize == -1) {
-                respSize = (int)generateRandomNumber(minRespSize, maxRespSize);
-            }
-            // Factor in granularity for the resp size
-            respSize *= granularity;
+            int nextServer;
             while(requestSpecs.size() <= numRequestsForProactive){
+                // Fill in the request specs for proactive policies, based on the distribution
+                nextServer = rand() % server_count;
+                if (respSize == -1) {
+                    respSize = (int)generateRandomNumber(minRespSize, maxRespSize);
+                }
+                // Factor in granularity for the resp size
+                respSize *= granularity;
                 if (iteration > 1 && use_traces) {
                     requestSpecs.push_back(tracer.specFor(traceIter++));
                 } else if (dist == "p"){
@@ -332,12 +333,10 @@ int main(int argc, char **argv) {
             // Get the next request spec
             RequestSpec nextReqSpec = requestSpecs.front();
             int nextTimeDelta = nextReqSpec.timeDelta;
+            respSize = nextReqSpec.respSize;
+            nextServer = nextReqSpec.server;
             requestSpecs.pop_front();
             if (currentTime != 0) {
-                if (iteration > 1 && use_traces) {
-                    respSize = nextReqSpec.respSize;
-                    nextServer = nextReqSpec.server;
-                }
                 spdlog::trace("----------------------------------------");
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
                 spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
