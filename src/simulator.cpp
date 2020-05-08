@@ -147,6 +147,10 @@ void printStatistics(Server *servers[], int server_count, long double time, long
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
+    if (argc != 2) {
+        spdlog::error("Mising command line parameter for config file name");
+        exit(EXIT_FAILURE);
+    }
     for (int i = 1; i < argc; i++) {
         spdlog::info("Command Line Parameters : {}", argv[i]);
     }
