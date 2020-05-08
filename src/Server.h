@@ -54,7 +54,7 @@ public:
 
     void forwardDeferredRequests(Server *servers[], int server_count);
 
-    void executeForwardingPipeline(int timeDelta, Server *servers[], int server_count);
+    void executeForwardingPipeline(int timeDelta, Server *servers[], int server_count, std::map<std::string,int> &policies);
 
     void processData(int timeDelta, Server *servers[], int server_count);
 

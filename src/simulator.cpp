@@ -146,7 +146,7 @@ void printStatistics(Server *servers[], int server_count, long double time, long
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
-    for (int i =1; i<=argc; i++){
+    for (int i = 1; i<argc; i++){
         spdlog::info("Command Line Parameters : {}", argv[i]);
     }
     //Reading from csv config file and assigning all parameters
@@ -173,6 +173,14 @@ int main(int argc, char **argv) {
         long double snapshotInterval = stold(row[5]);
         string dist = row[7];
         long numRequestsForProactive = stoi(row[8]);
+        int what_policy = stoi(row[9]);
+        int when_policy = stoi(row[10]);
+        int where_policy = stoi(row[11]);
+        std::map<std::string,int> policies;
+        policies["what"] = what_policy;
+        policies["when"] = when_policy;
+        policies["where"] = what_policy;
+        policies["granularity"] = granularity;
         long long alpha[server_count];
         int count = 0;
         row[2] = row[2].substr(1,row[2].length()-2);
@@ -239,7 +247,7 @@ int main(int argc, char **argv) {
                 // Execute policies to forward packets via RDMA
                 for (int i = 0; i < server_count; i++) {
                     spdlog::trace("number of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
-                    (*servers[i]).executeForwardingPipeline(1, servers, server_count);
+                    (*servers[i]).executeForwardingPipeline(1, servers, server_count,policies);
                 }
                 // Forward requests
                 for (int i = 0; i < server_count; i++) {
