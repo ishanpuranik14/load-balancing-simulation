@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include "Request.h"
 #include "Stats.h"
+#include "RequestSpec.h"
 
 class Server {
     long long totalFullyProcessedBytes;
@@ -46,7 +47,7 @@ public:
 
     void updatePendingCount();
 
-    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count, std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas);
+    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count, std::map<std::string,int> &policies, std::deque<RequestSpec> &requestSpecs);
 
     std::vector<std::_List_iterator<Request>> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 
@@ -59,7 +60,7 @@ public:
 
     void forwardDeferredRequests(Server *servers[], int server_count);
 
-    void executeForwardingPipeline(int timeDelta, Server *servers[], int server_count,std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas);
+    void executeForwardingPipeline(int timeDelta, Server *servers[], int server_count,std::map<std::string,int> &policies, std::deque<RequestSpec> &requestSpecs);
 
     void processData(int timeDelta, Server *servers[], int server_count);
 

@@ -99,7 +99,7 @@ void Server::updatePendingCount() {
     stats.setCumulativePendingCount(stats.getCumulativePendingCount() + getPendingRequestCount());
 }
 
-bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count, std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas) {
+bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count, std::map<std::string,int> &policies, std::deque<RequestSpec> &requestSpecs) {
     /*
     Use the when policy to determine whether to forward any request(s)
     */
@@ -107,7 +107,7 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
     long policy_2_time_units = 3 * policies["granularity"];
     double serverLoad;
     long double policy_0_threshold = 0.75, policy_1_threshold = 1.5, policy_2_threshold = 6.0;
-    std::deque<int> seenTimeDeltas;
+    std::deque<RequestSpec> seenTimeDeltas;
     spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
     switch (policyNum) {
         case -1:
@@ -139,16 +139,17 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
             long long forecastedPendingCount = reqQueue.size();
             // Go thru the time deltas to compute pending size till minimum(available time deltas, desired time gets elapsed)
             // We should never run out available time deltas. the queue needs to be populated enough
-            while(!requestTimeDeltas.empty() && (t + (currentDelta = requestTimeDeltas.front())) < policy_2_time_units){
+            while(!requestSpecs.empty() && (t + (currentDelta = requestSpecs.front().timeDelta)) < policy_2_time_units){
                 t += currentDelta;
-                requestTimeDeltas.pop_front();
-                seenTimeDeltas.push_back(currentDelta);
+                RequestSpec currentSpec = requestSpecs.front();
+                requestSpecs.pop_front();
+                seenTimeDeltas.push_back(currentSpec);
                 // update counts
                 forecastedPendingCount++;
             }
             // Put all requests back in the original queue
             while(!seenTimeDeltas.empty()){
-                requestTimeDeltas.push_front(seenTimeDeltas.back());
+                requestSpecs.push_front(seenTimeDeltas.back());
                 seenTimeDeltas.pop_back();
             }
             // use the ratio (The subtraction takes care of requests processed in policy_2_time_units)
@@ -307,13 +308,13 @@ void Server::forwardDeferredRequests(Server **servers, int server_count) {
     }
 }
 
-void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count, std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas) {
+void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count, std::map<std::string,int> &policies, std::deque<RequestSpec> &requestSpecs) {
     // Execute the when, what and where policies keeping in mind the timeUnits
     int when_policy = policies["when"];  // Use this to control the when policy
     int what_policy = policies["what"];  // Use this to control the what policy
     int where_policy = policies["where"]; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
-    if (whenPolicy(when_policy, timeDelta, servers, server_count, policies, requestTimeDeltas)) {
+    if (whenPolicy(when_policy, timeDelta, servers, server_count, policies, requestSpecs)) {
         int num_requests_forwarded = 0;
         spdlog::trace("\t\tServer #{} will execute the what policy", server_no);
         // Go thru and execute the what policy till it becomes inapplicable

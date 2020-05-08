@@ -9,6 +9,7 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "Server.h"
 #include "Clock.h"
+#include "TracePlayer.h"
 
 using namespace std;
 
@@ -149,7 +150,7 @@ void printStatistics(Server *servers[], int server_count, long double time, long
         spdlog::info("\t\t Average Waiting Time: {}", avgWaitingTime);
         outputFile << time << "," << i << "," << pendingReqsCount << "," << pendingReqsSize << ","
                    << numProcessedRequests << "," << bytesProcessed << "," << numRequestsForwarded << ","
-                   << sizeOfRequestsForwarded << "," << numForwardedRequestsReceived << "," << sizeOfForwardedRequestsReceived << "," 
+                   << sizeOfRequestsForwarded << "," << numForwardedRequestsReceived << "," << sizeOfForwardedRequestsReceived << ","
                    << numPendingForwardedRequests << "," << sizeOfPendingForwardedRequests << "," << serverUtilization << "," << busyTime << ","
                    << averageServiceRate << "," << ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()) << ","
                    << avgRespTime << endl;
@@ -175,6 +176,11 @@ void printStatistics(Server *servers[], int server_count, long double time, long
     prev_iteration = iteration;
 }
 
+long generate_random_number(long low, long high) {
+    int random_value = rand();
+    return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
+}
+
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
@@ -185,6 +191,9 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         spdlog::info("Command Line Parameters : {}", argv[i]);
     }
+
+    TracePlayer tracer = TracePlayer();
+
     //Reading from csv config file and assigning all parameters
     string results(argv[1]);
     const char *resultsFolder = (results.append("_results")).c_str();
@@ -192,16 +201,18 @@ int main(int argc, char **argv) {
         mkdir(resultsFolder,0777);
     }
     string configFile(argv[1]);
-    ifstream fin((configFile.append(".csv")).c_str()); 
-    deque<int> requestTimeDeltas; 
+    ifstream fin((configFile.append(".csv")).c_str());
     int iteration = 0;
     vector<string> row; 
     string line,word;
     getline(fin,line);
     while (getline(fin,line)) {
-        iteration++; 
-        row.clear();
+        iteration++;
         currentTime = 0;
+        reqIdGen = 0;
+        deque<RequestSpec> requestSpecs;
+
+        row.clear();
         stringstream s(line); 
         while (getline(s, word, ',')) { 
             row.push_back(word); 
@@ -285,28 +296,41 @@ int main(int argc, char **argv) {
         while (currentTime < maxSimulationTime) {
             int t = 0;
             // Fill in the time deltas for proactive policies, based on the distribution
-            while(requestTimeDeltas.size() <= numRequestsForProactive){
-                if(dist == "p"){
-                    requestTimeDeltas.push_back((int)p.generate());
+            int nextServer = rand() % server_count;
+            if (respSize == -1) {
+                respSize = generateRandomNumber(minRespSize, maxRespSize);
+            }
+            long long traceIter = reqIdGen;
+            while(requestSpecs.size() <= numRequestsForProactive){
+                if (iteration > 1) {
+                    requestSpecs.push_back(tracer.specFor(traceIter++));
+                    traceIter++;
+                } else if (dist == "p"){
+                    RequestSpec spec = {(int)p.generate(), respSize, nextServer};
+                    requestSpecs.push_back(spec);
+                    tracer.record(spec);
                 }
                 else{
-                    requestTimeDeltas.push_back((int)u.generate());
+                    RequestSpec spec = {(int)u.generate(), respSize, nextServer};
+                    requestSpecs.push_back(spec);
+                    tracer.record(spec);
                 }
             }
             // Get the next time delta
-            int nextTimeDelta = requestTimeDeltas.front();
-            requestTimeDeltas.pop_front();
+            RequestSpec nextReqSpec = requestSpecs.front();
+            int nextTimeDelta = nextReqSpec.timeDelta;
+            requestSpecs.pop_front();
             if (currentTime != 0) {
+                if (iteration > 1) {
+                    respSize = tracer.respSizeFor(reqIdGen);
+                    nextServer = tracer.serverFor(reqIdGen);
+                }
                 spdlog::trace("----------------------------------------");
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
                 spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
-                if (respSize == -1) {
-                    respSize = generateRandomNumber(maxRespSize, minRespSize);
-                }
-                spdlog::trace("\tCurrent response size = {}", respSize*granularity);
-                int nextServer = rand() % server_count;
+                spdlog::trace("\tCurrent response size = {}", respSize);
                 spdlog::trace("\tMapping the request on to server #{}", nextServer);
-                (*servers[nextServer]).addRequest(currentTime, respSize*granularity, -1, -1, -1);
+                (*servers[nextServer]).addRequest(currentTime, respSize, -1, -1, -1);
                 spdlog::trace("number of requests pending for server #{}: {}", nextServer, (*servers[nextServer]).getPendingRequestCount());
             }
             while ((t++ < nextTimeDelta) && (currentTime < maxSimulationTime)) {
@@ -315,7 +339,7 @@ int main(int argc, char **argv) {
                     // Execute policies to forward packets via RDMA
                     for (int i = 0; i < server_count; i++) {
                         spdlog::trace("\t\t\tnumber of requests pending for server {}:\t{}", i, (*servers[i]).getPendingRequestCount());
-                        (*servers[i]).executeForwardingPipeline(1, servers, server_count, policies, requestTimeDeltas);
+                        (*servers[i]).executeForwardingPipeline(1, servers, server_count, policies, requestSpecs);
                     }
                     // Forward requests
                     for (int i = 0; i < server_count; i++) {
@@ -337,8 +361,9 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        spdlog::info("---- ONE ITERATION OF SIMULATION ENDS----");
+        spdlog::info("---- ITERATION {} OF SIMULATION ENDS----", iteration);
         spdlog::info("------------------------------------------------------------------------------------------------");
+        spdlog::info("Tracer recorded {} requests", tracer.traceSize());
     }
     return 0;
 }

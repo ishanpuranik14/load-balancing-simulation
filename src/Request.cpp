@@ -19,11 +19,6 @@ Request::Request(long double timestamp, int reqSize, int sentBy, int respSize, l
     finishedTimestamp = 0;
 }
 
-double Request::generate_random_number(double low, double high) {
-    int random_value = rand();
-    return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
-}
-
 long long Request::getReqId() {
     return reqId;
 }
