@@ -4,4 +4,5 @@
 *.exe
 *.o
 *.csv
+!config*.csv
 build/

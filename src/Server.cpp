@@ -1,5 +1,8 @@
 #include "Server.h"
 #include "Clock.h"
+#include <map>
+
+using namespace std;
 
 Server::Server(long long alpha, int server_no, long double startStatCollectionFrom) : stats(startStatCollectionFrom) {
     // Initializations
@@ -304,11 +307,11 @@ void Server::forwardDeferredRequests(Server **servers, int server_count) {
     }
 }
 
-void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count, std::deque<int> &requestTimeDeltas) {
+void Server::executeForwardingPipeline(int timeDelta, Server **servers, int server_count, std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas) {
     // Execute the when, what and where policies keeping in mind the timeUnits
-    int when_policy = 1;  // Use this to control the when policy
-    int what_policy = 1;  // Use this to control the what policy
-    int where_policy = 1; // Use this to control the where policy
+    int when_policy = policies["when"];  // Use this to control the when policy
+    int what_policy = policies["what"];  // Use this to control the what policy
+    int where_policy = policies["where"]; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
     if (whenPolicy(when_policy, timeDelta, servers, server_count, requestTimeDeltas)) {
         int num_requests_forwarded = 0;
