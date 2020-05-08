@@ -16,8 +16,6 @@ using namespace std;
 std::ofstream outputFile;
 int prev_iteration = 0;
 
-int generateRandomNumber(int maxVal, int minVal);
-
 //function to check if a directory for stats of current iteration already exists
 int dirExists(const char *path)
 {
@@ -176,7 +174,7 @@ void printStatistics(Server *servers[], int server_count, long double time, long
     prev_iteration = iteration;
 }
 
-long generate_random_number(long low, long high) {
+double generateRandomNumber(double low, double high) {
     int random_value = rand();
     return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
 }
@@ -184,7 +182,7 @@ long generate_random_number(long low, long high) {
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
-    if (argc != 2) {
+    if (argc < 2) {
         spdlog::error("Missing command line parameter for config file name");
         exit(EXIT_FAILURE);
     }
@@ -192,6 +190,11 @@ int main(int argc, char **argv) {
         spdlog::info("Command Line Parameters : {}", argv[i]);
     }
 
+    // For recording input traces in the first iteration to be used for each subsequent iteration
+    bool use_traces = false;
+    if(argc == 3){
+        use_traces = argv[2][0] == 't'?true:false;
+    }
     TracePlayer tracer = TracePlayer();
 
     //Reading from csv config file and assigning all parameters
@@ -206,13 +209,18 @@ int main(int argc, char **argv) {
     vector<string> row; 
     string line,word;
     getline(fin,line);
+    
+    // For each iteration in the config file
     while (getline(fin,line)) {
+        // Initializations
+        srand(static_cast <unsigned> (time(0)));
         iteration++;
         currentTime = 0;
         reqIdGen = 0;
+        long long traceIter = reqIdGen;
         deque<RequestSpec> requestSpecs;
-
         row.clear();
+        // Read the parameters from the config file
         stringstream s(line); 
         while (getline(s, word, ',')) { 
             row.push_back(word); 
@@ -269,6 +277,7 @@ int main(int argc, char **argv) {
         long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
         long double checkTime = snapshotTime;
         spdlog::info("Simulation parameters");
+        spdlog::info("\tusing traces:\t{}",use_traces);
         spdlog::info("\tserver count:\t{}",server_count);
         spdlog::info("\tgranularity:\t{}",granularity);
         spdlog::info("\tlambda:\t{}",lambda);
@@ -295,35 +304,39 @@ int main(int argc, char **argv) {
         spdlog::trace("----SIMULATION BEGINS----\n\n");
         while (currentTime < maxSimulationTime) {
             int t = 0;
-            // Fill in the time deltas for proactive policies, based on the distribution
+            // Fill in the request specs for proactive policies, based on the distribution
             int nextServer = rand() % server_count;
             if (respSize == -1) {
-                respSize = generateRandomNumber(minRespSize, maxRespSize);
+                respSize = (int)generateRandomNumber(minRespSize, maxRespSize);
             }
-            long long traceIter = reqIdGen;
+            // Factor in granularity for the resp size
+            respSize *= granularity;
             while(requestSpecs.size() <= numRequestsForProactive){
-                if (iteration > 1) {
+                if (iteration > 1 && use_traces) {
                     requestSpecs.push_back(tracer.specFor(traceIter++));
-                    traceIter++;
                 } else if (dist == "p"){
                     RequestSpec spec = {(int)p.generate(), respSize, nextServer};
                     requestSpecs.push_back(spec);
-                    tracer.record(spec);
+                    if(use_traces){
+                        tracer.record(spec);
+                    }
                 }
                 else{
                     RequestSpec spec = {(int)u.generate(), respSize, nextServer};
                     requestSpecs.push_back(spec);
-                    tracer.record(spec);
+                    if(use_traces){
+                        tracer.record(spec);
+                    }
                 }
             }
-            // Get the next time delta
+            // Get the next request spec
             RequestSpec nextReqSpec = requestSpecs.front();
             int nextTimeDelta = nextReqSpec.timeDelta;
             requestSpecs.pop_front();
             if (currentTime != 0) {
-                if (iteration > 1) {
-                    respSize = tracer.respSizeFor(reqIdGen);
-                    nextServer = tracer.serverFor(reqIdGen);
+                if (iteration > 1 && use_traces) {
+                    respSize = nextReqSpec.respSize;
+                    nextServer = nextReqSpec.server;
                 }
                 spdlog::trace("----------------------------------------");
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
@@ -351,7 +364,7 @@ int main(int argc, char **argv) {
                     (*servers[i]).processData(1, servers, server_count);
                     (*servers[i]).updatePendingCount();
                     if(currentTime && ((long long)currentTime)%granularity == 0){
-                        (*servers[i]).storeHistoricData(5*granularity);
+                        (*servers[i]).storeHistoricData(5);
                     }
                 }
                 currentTime++;
@@ -367,5 +380,3 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
-
-int generateRandomNumber(int maxVal, int minVal) { return minVal + rand() % (maxVal - minVal + 1); }
