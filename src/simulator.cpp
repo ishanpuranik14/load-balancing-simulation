@@ -217,8 +217,6 @@ int main(int argc, char **argv) {
         policies["granularity"] = granularity;
         long long alpha[server_count];
         int count = 0;
-        // TODO read the time from config file
-        int numRequestsForProactive = lambda * 100;
         row[2] = row[2].substr(1,row[2].length()-2);
         stringstream l(row[2]);
         while(getline(l,word,';')){
