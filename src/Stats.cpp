@@ -17,6 +17,12 @@ Stats::Stats(long double startCollectingAt) {
     processedReqCount = 0;
     pendingReqCount = 0;
     statStartTime = startCollectingAt;
+    totalRequestsForwarded = 0;
+    requestsForwardedSize = 0;
+    totalPendingForwardedRequests = 0;
+    pendingForwardedRequestsSize = 0;
+    totalForwardedRequestsReceived = 0;
+    forwardedRequestsReceivedSize = 0;
 }
 
 void Stats::pushProcessedReqQueueForStats(Request cur) {
@@ -169,4 +175,64 @@ void Stats::decrementPendingReqCount() {
     if (shouldCollectStats()) {
         pendingReqCount--;
     }
+}
+
+void Stats::setNumRequestsForwardedToThisServer(long long totalReceived){
+    if (shouldCollectStats()) {
+         Stats::totalForwardedRequestsReceived = totalReceived;
+    }
+}
+
+long long Stats::getNumRequestsForwardedToThisServer(){
+    return totalForwardedRequestsReceived;
+}
+
+void Stats::setTotalSizeForwardedToThisServer(long long totalSizeReceived){
+    if (shouldCollectStats()) {
+         Stats::forwardedRequestsReceivedSize = totalSizeReceived;
+    }
+}
+
+long long Stats::getTotalSizeForwardedToThisServer(){
+    return forwardedRequestsReceivedSize;
+}
+
+void Stats::setPendingForwardedRequestsToThisServer(long long pendingCount){
+    if (shouldCollectStats()) {
+         Stats::totalPendingForwardedRequests = pendingCount;
+    }
+}
+
+long long Stats::getPendingForwardedRequestsToThisServer(){
+    return totalPendingForwardedRequests;
+}
+
+void Stats::setPendingSizeForwardedRequestsToThisServer(long long pendingSize){
+    if (shouldCollectStats()) {
+         Stats::pendingForwardedRequestsSize = pendingSize;
+    }
+}
+
+long long Stats::getPendingSizeForwardedRequestsToThisServer(){
+    return pendingForwardedRequestsSize;
+}
+
+void Stats::setTotalForwardedRequests(long long totalForwarded){
+    if (shouldCollectStats()) {
+        Stats::totalRequestsForwarded = totalForwarded;
+    }
+}
+
+long long Stats::getTotalForwardedRequests(){
+    return totalRequestsForwarded;
+}
+
+void Stats::setTotalForwardedSize(long long totalForwardedSize){
+    if (shouldCollectStats()) {
+         Stats::requestsForwardedSize = totalForwardedSize;
+    }
+}
+
+long long Stats::getTotalForwardedSize(){
+    return requestsForwardedSize;
 }

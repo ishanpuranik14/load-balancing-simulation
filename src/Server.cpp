@@ -75,7 +75,12 @@ void Server::addRequest(long double timestamp, int respSize, int sentBy, long do
     Request x = Request(timestamp, 1, sentBy, respSize, id);
     x.updateForwardingTimestamp(forwardingTimestamp);
     reqQueue.push_back(x);
-
+    if(sentBy != -1){
+        stats.setNumRequestsForwardedToThisServer(stats.getNumRequestsForwardedToThisServer()+1);
+        stats.setTotalSizeForwardedToThisServer(stats.getTotalSizeForwardedToThisServer()+respSize);
+        stats.setPendingForwardedRequestsToThisServer(stats.getPendingForwardedRequestsToThisServer()+1);
+        stats.setPendingSizeForwardedRequestsToThisServer(stats.getPendingSizeForwardedRequestsToThisServer()+respSize);
+    }
     stats.incrementPendingReqCount();
     stats.setTotalReqs(stats.getTotalReqs() + 1);
     stats.setTotalRespSize(stats.getTotalRespSize() + respSize);
@@ -282,6 +287,8 @@ void Server::forwardRequest(int send_to, std::_List_iterator<Request> requestIte
     // purge the request fm the queue
     // Add the request in the reciever's queue
     auto request = *requestIter;
+    stats.setTotalForwardedRequests(stats.getTotalForwardedRequests()+1);
+    stats.setTotalForwardedSize(stats.getTotalForwardedSize() + request.getRespSize());
     (*servers[send_to]).addRequest(request.getTimestamp(), request.getRespSize(), server_no, currentTime, request.getReqId());
 
     if (removeRequestFromQueue) {
@@ -349,11 +356,18 @@ void Server::processData(int timeDelta, Server **servers, int server_count) {
             stats.setTotalRespBytesProcessed(stats.getTotalRespBytesProcessed() + remainingCapacityForDelta);
             bytesProcessedInDelta += remainingCapacityForDelta;
             setPendingRequestSize(getPendingRequestSize() - remainingCapacityForDelta);
+            if(cur.getSentBy() != -1){
+                stats.setPendingSizeForwardedRequestsToThisServer(stats.getPendingSizeForwardedRequestsToThisServer()-remainingCapacityForDelta);
+            }
             remainingCapacityForDelta = 0;
         } else {
             // request finished processing
             remainingCapacityForDelta -= pendingSize;
             setPendingRequestSize(getPendingRequestSize() - pendingSize);
+            if(cur.getSentBy() != -1){
+                stats.setPendingForwardedRequestsToThisServer(stats.getPendingForwardedRequestsToThisServer()-1);
+                stats.setPendingSizeForwardedRequestsToThisServer(stats.getPendingSizeForwardedRequestsToThisServer()-pendingSize);
+            }
             cur.updatePendingSize(pendingSize);
             spdlog::trace(
                     "\t\t\t Else condition: Going to pop!! Server #{} processed {} / {} bytes of response for request #{}",

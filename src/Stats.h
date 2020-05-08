@@ -7,7 +7,7 @@
 
 class Stats {
     long long totalRespSize, totalReqs, totalRespBytesProcessed, cumulativePendingCount, pendingReqSize,
-        processedReqCount, pendingReqCount;
+        processedReqCount, pendingReqCount, totalRequestsForwarded, totalPendingForwardedRequests, totalForwardedRequestsReceived, requestsForwardedSize, pendingForwardedRequestsSize, forwardedRequestsReceivedSize;
     long double avgRespSize, utilization, totalRespTime, totalWaitingTime;
     long double totalBusyTime; // DON'T DELETE. Used for calculating average service rate
     long double statStartTime;
@@ -75,6 +75,30 @@ public:
     void incrementPendingReqCount();
 
     void decrementPendingReqCount();
+
+    void setNumRequestsForwardedToThisServer(long long totalReceived);
+
+    long long getNumRequestsForwardedToThisServer();
+
+    void setTotalSizeForwardedToThisServer(long long totalSizeReceived);
+
+    long long getTotalSizeForwardedToThisServer();
+
+    void setPendingForwardedRequestsToThisServer(long long pendingCount);
+
+    long long getPendingForwardedRequestsToThisServer();
+
+    void setPendingSizeForwardedRequestsToThisServer(long long pendingSize);
+
+    long long getPendingSizeForwardedRequestsToThisServer();
+
+    void setTotalForwardedRequests(long long totalForwarded);
+
+    long long getTotalForwardedRequests();
+
+    void setTotalForwardedSize(long long totalForwardedSize);
+
+    long long getTotalForwardedSize();
 };
 
 #endif //LOAD_BALANCING_SIMULATION_STATS_H

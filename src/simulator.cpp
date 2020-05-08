@@ -36,19 +36,24 @@ void printStatistics(Server *servers[], int server_count, long double time, long
     if (!infile.good()) {
         outputFile.open(serverStatsFileName);
         outputFile << "Time" << "," << "Server_no" << "," << "Pending_Requests" << "," << "Pending_req_size" << ","
-                   << "Processed Requests" << "," << "Processed req size" << "," << "Utilization" << ","
+                   << "Processed Requests" << "," << "Processed req size" << "," <<"# Requests Forwarded"<< ","
+                   <<"Size of Requests Forwarded"<< "," <<"# Forwarded Requests Received"<< ","<<"Size of Forwarded Requests Received"<< ","
+                   <<"# Pending Forwarded Requests Received"<< ","<<"Size of Pending Forwarded Requests Received"<< ","<< "Utilization" << ","
                    << "Busy Time" << "," << "Average Service Rate" << "," << "Average # requests in system" << ","
                    << "Average Response Time" << endl;
         outputFile.close();
         outputFile.open(overallStats);
         outputFile << "Time" << "," << "Total_reqs_processed" << "," << "Avg_utilization" << ","
                    << "total_bytes_processed" << "," << "total_pending_reqs" << "," << "total_pending_respSize"
-                   << "," << "Consolidated average # requests in system" << endl;
+                   << "total_requests_forwarded" << ","<< "total_size_of_requests_forwarded" << "," << "total_pending_forwarded_requests" << ","
+                   << "size_of_pending_forwarded_requests" << "," << "Consolidated average # requests in system" << endl;
         outputFile.close();
     }
     outputFile.open(serverStatsFileName, std::ios_base::app);
 
-    long long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0;
+    long long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0,
+    totalPendingForwardedRequests = 0, totalPendingForwardedRequestsSize = 0, totalForwardedRequestsReceived = 0, totalForwardedRequestsReceivedSize = 0,
+    totalRequestsForwarded = 0, totalRequestsForwardedSize = 0;
     long double totalUtilization = 0.0, startTime = 0.0;
     for (int i = 0; i < server_count; i++) {
         Server &server = *servers[i];
@@ -66,6 +71,12 @@ void printStatistics(Server *servers[], int server_count, long double time, long
         long double numPartiallyProcessedRequests = server.getPartiallyProcessedRequestCount();
         long double avgWaitingTime =
                 serverStats.getTotalWaitingTime() / (numProcessedRequests + numPartiallyProcessedRequests);
+        long long numRequestsForwarded = serverStats.getTotalForwardedRequests();
+        long long sizeOfRequestsForwarded = serverStats.getTotalForwardedSize();
+        long long numForwardedRequestsReceived = serverStats.getNumRequestsForwardedToThisServer();
+        long long sizeOfForwardedRequestsReceived = serverStats.getTotalSizeForwardedToThisServer();
+        long long numPendingForwardedRequests = serverStats.getPendingForwardedRequestsToThisServer();
+        long long sizeOfPendingForwardedRequests = serverStats.getPendingSizeForwardedRequestsToThisServer();
         // Add to cumulative
         totalPendingReqsCount += pendingReqsCount;
         totalPendingRespSize += pendingReqsSize;
@@ -73,6 +84,12 @@ void printStatistics(Server *servers[], int server_count, long double time, long
         totalRequestsProcessed += numProcessedRequests;
         totalUtilization += serverUtilization;
         consolidatedCumulativePendingCount += serverCumulativePendingCount;
+        totalRequestsForwarded += numRequestsForwarded;
+        totalRequestsForwardedSize += sizeOfRequestsForwarded;
+        totalPendingForwardedRequests += numPendingForwardedRequests;
+        totalPendingForwardedRequestsSize += sizeOfPendingForwardedRequests;
+        totalForwardedRequestsReceived += numForwardedRequestsReceived;
+        totalForwardedRequestsReceivedSize += sizeOfForwardedRequestsReceived;
         startTime = serverStats.getStatStartTime();
         // Print out
         spdlog::info("\tTime: {}", time);
@@ -81,6 +98,12 @@ void printStatistics(Server *servers[], int server_count, long double time, long
         spdlog::info("\t\t Size of processed responses : {} bytes", bytesProcessed);
         spdlog::info("\t\t # of pending requests : {}", pendingReqsCount);
         spdlog::info("\t\t Size of pending responses : {} bytes", pendingReqsSize);
+        spdlog::info("\t\t # of requests forwarded : {}", numRequestsForwarded);
+        spdlog::info("\t\t Size of forwarded responses : {} bytes", sizeOfRequestsForwarded);
+        spdlog::info("\t\t # of requests forwarded to this server : {}", numForwardedRequestsReceived);
+        spdlog::info("\t\t Size of requests forwarded to this server  : {} bytes", sizeOfForwardedRequestsReceived);
+        spdlog::info("\t\t # of pending requests forwarded to this server : {}", numPendingForwardedRequests);
+        spdlog::info("\t\t Size of pending  responses forwarded to this server : {} bytes", sizeOfPendingForwardedRequests);
         spdlog::info("\t\t Utilization : {} ", serverUtilization);
         spdlog::info("\t\t Busy time: {}", busyTime);
         spdlog::info("\t\t Average Service Rate: {}", averageServiceRate);
@@ -89,22 +112,28 @@ void printStatistics(Server *servers[], int server_count, long double time, long
         spdlog::info("\t\t Average Response Time: {}", avgRespTime);
         spdlog::info("\t\t Average Waiting Time: {}", avgWaitingTime);
         outputFile << time << "," << i << "," << pendingReqsCount << "," << pendingReqsSize << ","
-                   << numProcessedRequests << "," << bytesProcessed << "," << serverUtilization << "," << busyTime
-                   << ","
+                   << numProcessedRequests << "," << bytesProcessed << "," << numRequestsForwarded << ","
+                   << sizeOfRequestsForwarded << "," << numForwardedRequestsReceived << "," << sizeOfForwardedRequestsReceived << "," 
+                   << numPendingForwardedRequests << "," << sizeOfPendingForwardedRequests << "," << serverUtilization << "," << busyTime << ","
                    << averageServiceRate << "," << ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()) << ","
                    << avgRespTime << endl;
     }
     outputFile.close();
     outputFile.open(overallStats, std::ios_base::app);
     outputFile << time << "," << totalRequestsProcessed << "," << totalUtilization / double(server_count) << ","
-               << totalBytesProcessed << "," << totalPendingReqsCount << "," << totalPendingRespSize << ","
-               << ((long double)consolidatedCumulativePendingCount) / (time - startTime) << endl;
+               << totalBytesProcessed << "," << totalPendingReqsCount << "," << totalRequestsForwarded << ","
+               << totalRequestsForwardedSize << "," << totalPendingForwardedRequests << "," << totalPendingForwardedRequestsSize << ","
+               << totalPendingRespSize << "," << ((long double)consolidatedCumulativePendingCount) / (time - startTime) << endl;
     outputFile.close();
     spdlog::info("Cumulative");
     spdlog::info("Total # of requests processed : {}", totalRequestsProcessed);
     spdlog::info("Total size of processed responses : {} bytes", totalBytesProcessed);
     spdlog::info("Total # of pending requests : {}", totalPendingReqsCount);
     spdlog::info("Total pending response size : {} bytes", totalPendingRespSize);
+    spdlog::info("Total # of requests forwarded : {}", totalRequestsForwarded);
+    spdlog::info("Total size of forwarded responses : {} bytes", totalRequestsForwardedSize);
+    spdlog::info("Total # of pending forwarded requests: {}", totalPendingForwardedRequests);
+    spdlog::info("Total size of pending forwarded responses : {} bytes", totalPendingForwardedRequestsSize);
     spdlog::info("Consolidated average number of requests in the system: {} / {} = {}",
                  consolidatedCumulativePendingCount, time, ((long double)consolidatedCumulativePendingCount) / (time - startTime));
     prev_iteration = iteration;
