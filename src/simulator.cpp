@@ -28,7 +28,7 @@ int dirExists(const char *path)
 }
 
 void printStatistics(Server *servers[], int server_count, long double time, long iteration) {
-    string folderStart = "/home/vikas/load-balancing-simulation/src/results/iteration_";
+    string folderStart = "results/iteration_";
 
     //Defining Folder Name for each iteration
     char const *folderName = (folderStart.append(to_string(iteration))).c_str();
