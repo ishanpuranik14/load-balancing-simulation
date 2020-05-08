@@ -15,6 +15,8 @@ using namespace std;
 std::ofstream outputFile;
 int prev_iteration = 0;
 
+int generateRandomNumber(int maxVal, int minVal);
+
 //function to check if a directory for stats of current iteration already exists
 int dirExists(const char *path)
 {
@@ -210,16 +212,16 @@ int main(int argc, char **argv) {
         row[3] = row[3].substr(1,row[3].length()-2);
         stringstream r(row[3]);
         int c = 0;
-        double limits[] ={-1,-1};
+        int limits[] ={-1,-1};
         while(getline(r,word,';')){
             limits[c] = stoi(word);
             c++;
         }
-        double respSize = -1;//Initialized it to -1 to check later if respSize is one constant value
-        double maxRespSize = 0; //Max Limit for Random Response Size generation
-        double minRespSize = 0; // Min Limit for Random Response Size generation
+        int respSize = -1;//Initialized it to -1 to check later if respSize is one constant value
+        int maxRespSize = 0; //Max Limit for Random Response Size generation
+        int minRespSize = 0; // Min Limit for Random Response Size generation
         if(limits[1]==-1){
-            respSize = limits[0]*granularity;
+            respSize = limits[0];
         }
         else{
             maxRespSize = limits[1];
@@ -295,6 +297,9 @@ int main(int argc, char **argv) {
                 spdlog::trace("----------------------------------------");
                 spdlog::trace("\tTime elapsed {} time units", currentTime);
                 spdlog::trace("\tNext request arrives in {} time units", nextTimeDelta);
+                if (respSize == -1) {
+                    respSize = generateRandomNumber(maxRespSize, minRespSize);
+                }
                 spdlog::trace("\tCurrent response size = {}", respSize*granularity);
                 int nextServer = rand() % server_count;
                 spdlog::trace("\tMapping the request on to server #{}", nextServer);
@@ -334,3 +339,5 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
+
+int generateRandomNumber(int maxVal, int minVal) { return minVal + rand() % (maxVal - minVal + 1); }
