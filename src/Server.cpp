@@ -99,12 +99,12 @@ void Server::updatePendingCount() {
     stats.setCumulativePendingCount(stats.getCumulativePendingCount() + getPendingRequestCount());
 }
 
-bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count, std::deque<int> &requestTimeDeltas) {
+bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int server_count, std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas) {
     /*
     Use the when policy to determine whether to forward any request(s)
     */
     bool time_to_forward = false;
-    long policy_2_time_units = 3;      // TODO: make it granularity aware
+    long policy_2_time_units = 3 * policies["granularity"];
     double serverLoad;
     long double policy_0_threshold = 0.75, policy_1_threshold = 1.5, policy_2_threshold = 6.0;
     std::deque<int> seenTimeDeltas;
@@ -313,7 +313,7 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
     int what_policy = policies["what"];  // Use this to control the what policy
     int where_policy = policies["where"]; // Use this to control the where policy
     spdlog::trace("\t\tServer #{} will execute the when policy", server_no);
-    if (whenPolicy(when_policy, timeDelta, servers, server_count, requestTimeDeltas)) {
+    if (whenPolicy(when_policy, timeDelta, servers, server_count, policies, requestTimeDeltas)) {
         int num_requests_forwarded = 0;
         spdlog::trace("\t\tServer #{} will execute the what policy", server_no);
         // Go thru and execute the what policy till it becomes inapplicable

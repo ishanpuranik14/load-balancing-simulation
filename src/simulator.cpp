@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
     if (argc != 2) {
-        spdlog::error("Mising command line parameter for config file name");
+        spdlog::error("Missing command line parameter for config file name");
         exit(EXIT_FAILURE);
     }
     for (int i = 1; i < argc; i++) {
@@ -265,6 +265,9 @@ int main(int argc, char **argv) {
         spdlog::info("\tmaxSimulationTime:\t{}",maxSimulationTime);
         spdlog::info("\tsnapshotInterval:\t{}",snapshotInterval);
         spdlog::info("\tdistrbution:\t{}",dist);
+        spdlog::info("\twhen policy:\t{}",when_policy);
+        spdlog::info("\twhat policy:\t{}",what_policy);
+        spdlog::info("\twhere policy:\t{}",where_policy);
         spdlog::info("\talpha_values:");
         for (int i = 0; i<server_count;i++){
             spdlog::info("\t\t{}",alpha[i]);
@@ -324,7 +327,7 @@ int main(int argc, char **argv) {
                     (*servers[i]).processData(1, servers, server_count);
                     (*servers[i]).updatePendingCount();
                     if(currentTime && ((long long)currentTime)%granularity == 0){
-                        (*servers[i]).storeHistoricData(5);
+                        (*servers[i]).storeHistoricData(5*granularity);
                     }
                 }
                 currentTime++;

@@ -46,7 +46,7 @@ public:
 
     void updatePendingCount();
 
-    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count, std::deque<int> &requestTimeDeltas);
+    bool whenPolicy(int policyNum, int timeDelta, Server *servers[], int server_count, std::map<std::string,int> &policies, std::deque<int> &requestTimeDeltas);
 
     std::vector<std::_List_iterator<Request>> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 
