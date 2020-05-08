@@ -3,6 +3,7 @@
 #include "Uniform.h"
 #include "Generator.h"
 #include <bits/stdc++.h>
+#include <sys/stat.h>
 #include "spdlog/spdlog.h"
 #include "spdlog/cfg/env.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
@@ -146,14 +147,13 @@ void printStatistics(Server *servers[], int server_count, long double time, long
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
-    for (int i =1; i<=argc; i++){
+    for (int i = 1; i < argc; i++) {
         spdlog::info("Command Line Parameters : {}", argv[i]);
     }
     //Reading from csv config file and assigning all parameters
     string configFile(argv[1]);
     ifstream fin((configFile.append(".csv")).c_str());  
-    int count = 0;
-    int iteration = 0;  
+    int iteration = 0;
     vector<string> row; 
     string line,word;
     getline(fin,line);
