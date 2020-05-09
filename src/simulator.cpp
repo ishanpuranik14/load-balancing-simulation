@@ -274,13 +274,14 @@ int main(int argc, char **argv) {
                 count++;
             }
         }
+        long double statCollectionStart = stold(row[12])*granularity;
         long double snapshotTime = ((snapshotInterval / 100) * maxSimulationTime);
         long double checkTime = snapshotTime;
         spdlog::info("Simulation parameters");
         spdlog::info("\tusing traces:\t{}",use_traces);
         spdlog::info("\tserver count:\t{}",server_count);
         spdlog::info("\tgranularity:\t{}",granularity);
-        spdlog::info("\tlambda:\t{}",lambda);
+        spdlog::info("\tlambda:\t{}",lambda/granularity);
         spdlog::info("\trespSize:\t{}",respSize);
         spdlog::info("\tmaxSimulationTime:\t{}",maxSimulationTime);
         spdlog::info("\tsnapshotInterval:\t{}",snapshotInterval);
@@ -297,7 +298,7 @@ int main(int argc, char **argv) {
         Poisson p = Poisson(lambda,granularity);
         Uniform u = Uniform(lambda,granularity);
         for (int i = 0; i < server_count; i++) {
-            servers[i] = new Server(alpha[i], i, 0);
+            servers[i] = new Server(alpha[i], i, statCollectionStart);
         }
         // Iteration
         cout << endl;
