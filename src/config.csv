@@ -1,3 +1,2 @@
 lambda,server_count,alpha,respSize,time,interval,granularity,distribution,proactiveRequests,what_policy,when_policy,where_policy
-9,2,[500],[100],10,10,1,u,5,1,1,1
-9,2,[500],[100],10,10,1,u,5,1,1,1
+0.0625,1,[200],[100],100000,10,4096,p,1,-1,-1,-1

@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
         int maxRespSize = 0; //Max Limit for Random Response Size generation
         int minRespSize = 0; // Min Limit for Random Response Size generation
         if(limits[1]==-1){
-            respSize = limits[0];
+            respSize = limits[0]*granularity;
         }
         else{
             maxRespSize = limits[1];
@@ -310,9 +310,9 @@ int main(int argc, char **argv) {
                 nextServer = rand() % server_count;
                 if (respSize == -1) {
                     respSize = (int)generateRandomNumber(minRespSize, maxRespSize);
+                    // Factor in granularity for the resp size
+                    respSize *= granularity;
                 }
-                // Factor in granularity for the resp size
-                respSize *= granularity;
                 if (iteration > 1 && use_traces) {
                     requestSpecs.push_back(tracer.specFor(traceIter++));
                 } else if (dist == "p"){
