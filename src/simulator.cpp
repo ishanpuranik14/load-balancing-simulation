@@ -238,11 +238,11 @@ int main(int argc, char **argv) {
         stringstream r(row[3]);
         int c = 0;
         int limits[] ={-1,-1};
-        while(getline(r,word,';')){
+        while(getline(r,word,':')){
             limits[c] = stoi(word);
             c++;
         }
-        int respSize = -1;//Initialized it to -1 to check later if respSize is one constant value
+        int respSize = -1;
         int maxRespSize = 0; //Max Limit for Random Response Size generation
         int minRespSize = 0; // Min Limit for Random Response Size generation
         if(limits[1]==-1){
@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
         int count = 0;
         row[2] = row[2].substr(1,row[2].length()-2);
         stringstream l(row[2]);
-        while(getline(l,word,';')){
+        while(getline(l,word,':')){
             alpha[count] = stoll(word);
             count++;
         }
@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
             while(requestSpecs.size() <= numRequestsForProactive){
                 // Fill in the request specs for proactive policies, based on the distribution
                 nextServer = rand() % server_count;
-                if (respSize == -1) {
+                if (maxRespSize != 0) {//Initialized it to -1 to check later if respSize is one constant value
                     respSize = (int)generateRandomNumber(minRespSize, maxRespSize);
                     // Factor in granularity for the resp size
                     respSize *= granularity;
