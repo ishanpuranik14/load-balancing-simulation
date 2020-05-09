@@ -268,6 +268,46 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
             }
             break;
         }
+        case 3: {
+            /* least loaded - historic values*/
+            least_load = (*servers[(server_no + 1) % server_count]).getServerLoad(true);
+            send_to = (server_no + 1) % server_count;
+            for (int i = 0; i < server_count; i++) {
+                if (i != server_no) {
+                    load = (*servers[i]).getServerLoad(true);
+                    spdlog::trace("\t\t\t\tFor historic least loaded, Comparing the load of server #{}, load: {}", i, load);
+                    if (load < least_load) {
+                        least_load = load;
+                        send_to = i;
+                    }
+                }
+            }
+            break;
+        }
+        case 4: {
+            /* Power of k - historic values */
+            least_load = LONG_MAX;
+            if(server_count>k){    
+                int randomly_selected_server;
+                for (int i = 0; i < k; i++) {
+                    randomly_selected_server = rand() % server_count;
+                    // Regenerate if redundant
+                    while (randomly_selected_server == server_no ||
+                        (find(randomly_selected_servers.begin(), randomly_selected_servers.end(),
+                                randomly_selected_server) != randomly_selected_servers.end())) {
+                        randomly_selected_server = rand() % server_count;
+                    }
+                    randomly_selected_servers.push_back(randomly_selected_server);
+                    load = (*servers[randomly_selected_server]).getServerLoad(true);
+                    spdlog::trace("\t\t\t\tPower of {} - historic, Comparing the load of server #{}, load: {}", k, randomly_selected_server, load);
+                    if (load < least_load) {
+                        least_load = load;
+                        send_to = randomly_selected_server;
+                    }
+                }
+            }
+            break;
+        }
         default:
             break;
     }
