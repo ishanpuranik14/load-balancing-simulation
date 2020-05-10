@@ -132,7 +132,7 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
             }
             break;
         }
-        case 2: {
+        case 2: case 3: {
             // Proactively assessing server load after a given time and taking preventive measures
             int currentDelta;
             long t = 0;
@@ -158,8 +158,16 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
             spdlog::trace("\t\t\t\tServer #{} | Current pending count: {} | Current Forecasted incoming: {} | Outgoing in those time units: {}", server_no, reqQueue.size(), forecastedPendingCount, (double)(policy_2_time_units*alpha)/(double)avgRespSize);
             spdlog::trace("\t\t\t\tServer #{} | Current server load: {}", server_no, getServerLoad());
             spdlog::trace("\t\t\t\tServer #{} | forecasted server load: {} | threshold: {}", server_no, serverLoad, policy_2_threshold);
-            if(serverLoad > policy_2_threshold){
-                time_to_forward = true;
+            if(policyNum == 3){
+                // Hybrid policy
+                serverLoad = 0.5*serverLoad + 0.5*getServerLoad();
+                if(serverLoad > 0.5*policy_2_threshold + 0.5*policy_1_threshold){
+                    time_to_forward = true;
+                }
+            } else {
+                if(serverLoad > policy_2_threshold){
+                    time_to_forward = true;
+                }
             }
             break;
         }
