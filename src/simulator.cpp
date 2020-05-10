@@ -28,7 +28,11 @@ int dirExists(const char *path)
         return 0;
 }
 
-void printStatistics(Server *servers[], int server_count, long double time, long iteration, const char *configFile, int granularity) {
+void printStatistics(Server *servers[], int server_count, long double time, long iteration, const char *configFile, map<string, int> policies) {
+    int granularity = policies["granularity"];
+    int what = policies["what"];
+    int when = policies["when"];
+    int where = policies["where"];
     long double actualTime = time / granularity;
     string conf(configFile);
     string folderStart = conf.append("/iteration_");
@@ -42,9 +46,10 @@ void printStatistics(Server *servers[], int server_count, long double time, long
     string s(folderName);
     string o(folderName);
 
+    string fileSuffix = "_" + to_string(what) + "_" + to_string(when) + "_" + to_string(where) + ".csv";
     //Creating full path Strings for the server Stats File and Overall stats file (each file is inside the directory for that iteration)
-    string serverStats = s.append("/serverStats.csv");
-    string overall = o.append("/overallStats.csv");
+    string serverStats = s.append("/serverStats").append(fileSuffix);
+    string overall = o.append("/overallStats").append(fileSuffix);
     char const *serverStatsFileName = serverStats.c_str();
     char const *overallStats = overall.c_str();
 
@@ -454,7 +459,7 @@ int main(int argc, char **argv) {
                 }
                 currentTime++;
                 if (currentTime == checkTime) {
-                    printStatistics(servers, server_count, currentTime, iteration,resultsFolder, granularity);
+                    printStatistics(servers, server_count, currentTime, iteration, resultsFolder, policies);
                     checkTime += snapshotTime;
                 }
             }
