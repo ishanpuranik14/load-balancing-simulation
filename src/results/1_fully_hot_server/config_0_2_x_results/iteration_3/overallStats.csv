@@ -1,0 +1,4 @@
+Time,Total_reqs_processed,Avg_utilization,total_bytes_processed,total_pending_reqs,total_pending_respSize,total_requests_forwarded,total_size_of_requests_forwarded,total_pending_forwarded_requests,size_of_pending_forwarded_requests,Consolidated average # requests in system,Consolidated Average Response Size
+8.192e+06,352130,0.3999,327597960000,377417,418496705728,311927,414691856384,188811,250933776384,188575,470427
+1.6384e+07,704669,0.39995,655277960000,756232,837886895296,687734,914161606656,441313,586563526656,377606,470264
+2.4576e+07,1057241,0.399967,982957960000,1133746,1256236483776,894617,1189148815360,524895,697710735360,566765,470246
