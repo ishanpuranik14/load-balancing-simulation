@@ -104,9 +104,10 @@ bool Server::whenPolicy(int policyNum, int timeDelta, Server **servers, int serv
     Use the when policy to determine whether to forward any request(s)
     */
     bool time_to_forward = false;
-    long policy_2_time_units = 3 * policies["granularity"];
+    int &granularity = policies["granularity"];
+    long policy_2_time_units = 3 * granularity;
     double serverLoad;
-    long double policy_0_threshold = 0.75, policy_1_threshold = 1.5, policy_2_threshold = 6.0;
+    long double policy_0_threshold = 0.75, policy_1_threshold = 1.5 * granularity, policy_2_threshold = 6.0 * granularity;
     std::deque<RequestSpec> seenTimeDeltas;
     spdlog::trace("\t\t\tWhen policy #{}:", policyNum);
     switch (policyNum) {
