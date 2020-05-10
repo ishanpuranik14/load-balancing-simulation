@@ -1,11 +1,11 @@
 #include <cstdio>
 #include "Poisson.h"
 #include "Uniform.h"
-#include "Generator.h"
 #include <bits/stdc++.h>
 #include <sys/stat.h>
 #include "spdlog/spdlog.h"
 #include "spdlog/cfg/env.h"
+#include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "Server.h"
 #include "Clock.h"
@@ -191,17 +191,17 @@ int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
     if (argc < 2) {
-        spdlog::error("Missing command line parameter for config file name");
+        std::cerr << "Missing command line parameter for config file name" << std::endl;
         exit(EXIT_FAILURE);
     }
     for (int i = 1; i < argc; i++) {
-        spdlog::info("Command Line Parameters : {}", argv[i]);
+        std::cout << "Command Line Parameters : " << argv[i] << std::endl;
     }
 
     // For recording input traces in the first iteration to be used for each subsequent iteration
     bool use_traces = false;
     if(argc == 3){
-        use_traces = argv[2][0] == 't'?true:false;
+        use_traces = argv[2][0] == 't';
     }
     TracePlayer tracer = TracePlayer();
 
@@ -211,8 +211,28 @@ int main(int argc, char **argv) {
     if(dirExists(resultsFolder)==0){
         mkdir(resultsFolder,0777);
     }
+
+    // write logs to output directory
+    try {
+        auto filename = results + "/logs.txt";
+        remove(filename.c_str());
+        cout << filename << endl;
+        auto logger = spdlog::basic_logger_mt("x", filename);
+        spdlog::set_default_logger(logger);
+    } catch (const spdlog::spdlog_ex &ex) {
+        std::cerr << "Log init failed: " << ex.what() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy config file to output directory
     string configFile(argv[1]);
     ifstream fin((configFile.append(".csv")).c_str());
+    ofstream configcopy(results + "/" + configFile);
+    configcopy << fin.rdbuf();
+    fin.clear();
+    fin.seekg(0);
+    configcopy.close();
+
     int iteration = 0;
     vector<string> row; 
     string line,word;

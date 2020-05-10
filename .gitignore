@@ -6,4 +6,6 @@
 *.csv
 !config*.csv
 build/
-src/results
+src/*_results
+Pipfile
+config_test.csv
