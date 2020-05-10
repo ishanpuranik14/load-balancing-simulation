@@ -174,29 +174,37 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
     Use the what policy to determine which request(s) to forward
     */
     std::vector<std::_List_iterator<Request>> requestsToBeForwarded;
-    double policy_1_fraction = 0.2;
+    double policy_1_fraction = 0.2, policy_2_fraction = 0.15;
     // Go thru all the requests
     spdlog::trace("\t\t\tWhat policy #{}:", policyNum);
     spdlog::trace("\t\t\tServer #{} has average response size: {}", server_no, avgRespSize);
-    for (auto it=reqQueue.begin(); it != reqQueue.end(); ++it) {
+    long k=0;
+    for (auto it=reqQueue.begin(); it != reqQueue.end(); ++it, k++) {
         auto cur = *it;
         spdlog::trace("\t\t\t\tConsidering RequestID: {} with response size: {} and pending size: {}", cur.getReqId(),
                       cur.getRespSize(), cur.getPendingSize());
         // Dont consider partially processed/ forwarded requests
         if (cur.getRespSize() == cur.getPendingSize() && cur.getSentBy() == -1) {
             // Apply the policy
+            bool break_flag = false;
             switch (policyNum) {
-                case 0: case 1: {
+                case 0: case 1: case 2: {
                     // forward the ones whose size > avg
                     if (cur.getRespSize() >= avgRespSize) {
                         spdlog::trace("\t\t\t\t\tRequestID: {}  qualifies for forwarding", cur.getReqId());
                         requestsToBeForwarded.push_back(it);
+                    }
+                    if(policyNum == 2){
+                        if(k >= (int)(policy_2_fraction*reqQueue.size())){
+                            break_flag = true;
+                        }
                     }
                     break;
                 }
                 default:
                     break;
             }
+            if(break_flag)break;
         }
     }
     switch (policyNum){
@@ -219,8 +227,7 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
     int send_to = server_no;               // Use this to determine whom to send the request to
     long double load, least_load;                       // Use this to store the load of the server chosen
     std::vector<int> randomly_selected_servers; // Use this for Power of k
-    int k = policies["k"];
-    cout<<"Hello K_Value "<<k<<endl;                             // Use this to play with Power of k
+    int k = policies["k"];                           // Use this to play with Power of k
     spdlog::trace("\t\t\tWhere Policy #{} executing switch", policyNum);
     switch (policyNum) {
         case 0: {
