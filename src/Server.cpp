@@ -38,7 +38,7 @@ long long Server::getPendingRequestSize() {
     return pendingReqSize;
 }
 
-long double Server::getServerLoad(bool historic=false){
+long double Server::getServerLoad(bool historic){
     // TODO Read the time units for history from the config and put them as a server variable. Use that to return 0 when we dont have enough history. 
     if(historic){
         return loads.front();

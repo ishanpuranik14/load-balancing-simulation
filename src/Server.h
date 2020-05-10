@@ -37,7 +37,7 @@ public:
 
     long long getPendingRequestSize();
 
-    long double getServerLoad(bool historic);
+    long double getServerLoad(bool historic = false);
 
     long double calculateUtilization();
 
