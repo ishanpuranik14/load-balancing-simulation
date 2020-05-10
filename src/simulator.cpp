@@ -73,14 +73,14 @@ void printStatistics(Server *servers[], int server_count, long double time, long
                    <<"Size of Requests Forwarded"<< "," <<"# Forwarded Requests Received"<< ","<<"Size of Forwarded Requests Received"<< ","
                    <<"# Pending Forwarded Requests Received"<< ","<<"Size of Pending Forwarded Requests Received"<< ","<< "Utilization" << ","
                    << "Busy Time" << "," << "Average Service Rate" << "," << "Average # requests in system" << ","
-                   << "Average Response Time" << "," << "Average Response Size" << endl;
+                   << "Average Response Time" << "," << "Average Response Size" << ","<<"Average Response Time"<<","<<"Average Waiting Time"<<endl;
         outputFile.close();
         outputFile.open(overallStats);
         outputFile << "Time" << "," << "Total_reqs_processed" << "," << "Avg_utilization" << ","
                    << "total_bytes_processed" << "," << "total_pending_reqs" << "," << "total_pending_respSize" << ","
                    << "total_requests_forwarded" << ","<< "total_size_of_requests_forwarded" << "," << "total_pending_forwarded_requests" << ","
                    << "size_of_pending_forwarded_requests" << "," << "Consolidated average # requests in system" << ","
-                   << "Consolidated Average Response Size" << endl;
+                   << "Consolidated Average Response Size" << ","<<"Total Average Response Time"<<","<<"Total Average Waiting Time"<<endl;
         outputFile.close();
     }
 
@@ -90,7 +90,7 @@ void printStatistics(Server *servers[], int server_count, long double time, long
     long long totalPendingRespSize = 0, totalPendingReqsCount = 0, totalBytesProcessed = 0, totalRequestsProcessed = 0, consolidatedCumulativePendingCount = 0,
     totalPendingForwardedRequests = 0, totalPendingForwardedRequestsSize = 0, totalForwardedRequestsReceived = 0, totalForwardedRequestsReceivedSize = 0,
     totalRequestsForwarded = 0, totalRequestsForwardedSize = 0;
-    long double totalUtilization = 0.0, startTime = 0.0, totalAvgRespSize = 0.0;
+    long double totalUtilization = 0.0, startTime = 0.0, totalAvgRespSize = 0.0, totalAvgRespTime = 0.0, totalAvgWaitingTime = 0.0;
     for (int i = 0; i < server_count; i++) {
         Server &server = *servers[i];
         Stats &serverStats = server.getStats();
@@ -128,6 +128,8 @@ void printStatistics(Server *servers[], int server_count, long double time, long
         totalForwardedRequestsReceived += numForwardedRequestsReceived;
         totalForwardedRequestsReceivedSize += sizeOfForwardedRequestsReceived;
         totalAvgRespSize += avgRespSize;
+        totalAvgRespTime += avgRespTime;
+        totalAvgWaitingTime += avgWaitingTime;
         startTime = serverStats.getStatStartTime();
         // Print out
         spdlog::info("\tTime: {}", time);
@@ -155,7 +157,7 @@ void printStatistics(Server *servers[], int server_count, long double time, long
                    << sizeOfRequestsForwarded << "," << numForwardedRequestsReceived << "," << sizeOfForwardedRequestsReceived << ","
                    << numPendingForwardedRequests << "," << sizeOfPendingForwardedRequests << "," << serverUtilization << "," << busyTime << ","
                    << averageServiceRate << "," << ((long double)serverCumulativePendingCount) / (time - serverStats.getStatStartTime()) << ","
-                   << avgRespTime << "," << avgRespSize << endl;
+                   << avgRespTime << "," << avgRespSize << "," <<avgRespTime<<","<<avgWaitingTime<<endl;
     }
     outputFile.close();
     outputFile.open(overallStats, std::ios_base::app);
@@ -163,7 +165,7 @@ void printStatistics(Server *servers[], int server_count, long double time, long
                << totalBytesProcessed << "," << totalPendingReqsCount << "," << totalPendingRespSize << ","
                << totalRequestsForwarded << "," << totalRequestsForwardedSize << "," << totalPendingForwardedRequests << ","
                << totalPendingForwardedRequestsSize << "," << ((long double)consolidatedCumulativePendingCount) / (time - startTime) << ","
-               << totalAvgRespSize/server_count << endl;
+               << totalAvgRespSize/server_count << ","<<totalAvgRespTime/server_count<<","<<totalAvgWaitingTime/server_count<<endl;
     outputFile.close();
     spdlog::info("Cumulative");
     spdlog::info("Total # of requests processed : {}", totalRequestsProcessed);

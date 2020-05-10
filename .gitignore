@@ -6,3 +6,4 @@
 *.csv
 !config*.csv
 build/
+src/results
