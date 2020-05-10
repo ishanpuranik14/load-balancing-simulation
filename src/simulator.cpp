@@ -221,6 +221,18 @@ double generateRandomNumber(double low, double high) {
     return (low + (static_cast<double>(random_value) / (static_cast<double>(RAND_MAX / (high - low)))));
 }
 
+std::vector<std::string> split(const std::string& s, char delimiter)
+{
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter))
+    {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
 int main(int argc, char **argv) {
     spdlog::cfg::load_env_levels();
     //Reading command line parameters
@@ -241,6 +253,8 @@ int main(int argc, char **argv) {
 
     //Reading from csv config file and assigning all parameters
     string results(argv[1]);
+    auto split_res = split(results, '/');
+    results = split_res[split_res.size() - 1];
     const char *resultsFolder = (results.append("_results")).c_str();
     if(dirExists(resultsFolder)==0){
         mkdir(resultsFolder,0777);
@@ -260,6 +274,8 @@ int main(int argc, char **argv) {
 
     // Copy config file to output directory
     string configFile(argv[1]);
+    auto split_r = split(configFile, '/');
+    configFile = split_r[split_r.size() - 1];
     ifstream fin((configFile.append(".csv")).c_str());
     ofstream configcopy(results + "/" + configFile);
     configcopy << fin.rdbuf();
