@@ -273,11 +273,12 @@ int main(int argc, char **argv) {
     }
 
     // Copy config file to output directory
+    string configPath(argv[1]);
     string configFile(argv[1]);
     auto split_r = split(configFile, '/');
     configFile = split_r[split_r.size() - 1];
-    ifstream fin((configFile.append(".csv")).c_str());
-    ofstream configcopy(results + "/" + configFile);
+    ifstream fin((configPath.append(".csv")).c_str());
+    ofstream configcopy(results + "/" + configFile + ".csv");
     configcopy << fin.rdbuf();
     fin.clear();
     fin.seekg(0);
