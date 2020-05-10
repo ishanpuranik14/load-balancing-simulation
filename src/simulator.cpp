@@ -336,9 +336,13 @@ int main(int argc, char **argv) {
         std::map<std::string,int> policies;
         policies["what"] = what_policy;
         policies["when"] = when_policy;
-        policies["where"] = what_policy;
+        policies["where"] = where_policy;
         policies["granularity"] = granularity;
         policies["k"] = k;
+        if ((when_policy == 2 || when_policy == 3) && numRequestsForProactive <= 1) {
+            std::cerr << "numRequestsForProactive is " << numRequestsForProactive << ". Should be > 1" <<std::endl;
+            exit(EXIT_FAILURE);
+        }
         long long alpha[server_count];
         int count = 0;
         row[2] = row[2].substr(1,row[2].length()-2);
