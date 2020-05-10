@@ -315,11 +315,13 @@ int main(int argc, char **argv) {
         int what_policy = stoi(row[9]);
         int when_policy = stoi(row[10]);
         int where_policy = stoi(row[11]);
+        int k = stoi(row[13]);
         std::map<std::string,int> policies;
         policies["what"] = what_policy;
         policies["when"] = when_policy;
         policies["where"] = what_policy;
         policies["granularity"] = granularity;
+        policies["k"] = k;
         long long alpha[server_count];
         int count = 0;
         row[2] = row[2].substr(1,row[2].length()-2);

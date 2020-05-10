@@ -212,14 +212,15 @@ std::vector<std::_List_iterator<Request>> Server::whatPolicy(int policyNum, int 
 }
 
 int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int server_count,
-                        Request requestToBeForwarded) {
+                        Request requestToBeForwarded,std::map<std::string,int> &policies) {
     /*
     Use the where policy to send to the appropriate server
     */
     int send_to = server_no;               // Use this to determine whom to send the request to
     long double load, least_load;                       // Use this to store the load of the server chosen
     std::vector<int> randomly_selected_servers; // Use this for Power of k
-    int k = 2;                             // Use this to play with Power of k
+    int k = policies["k"];
+    cout<<"Hello K_Value "<<k<<endl;                             // Use this to play with Power of k
     spdlog::trace("\t\t\tWhere Policy #{} executing switch", policyNum);
     switch (policyNum) {
         case 0: {
@@ -365,7 +366,7 @@ void Server::executeForwardingPipeline(int timeDelta, Server **servers, int serv
             auto request = *(*requestIter);
             spdlog::trace("\t\tServer #{} will execute the where policy for requestID: {}", server_no,
                           request.getReqId());
-            int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, request);
+            int send_to = wherePolicy(where_policy, timeDelta, servers, server_count, request,policies);
             if (send_to != server_no && send_to != -1) {
                 num_requests_forwarded++;
                 spdlog::trace("\t\tServer #{} will forward the requestID: {} to the server#: {}", server_no,

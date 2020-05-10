@@ -51,7 +51,7 @@ public:
 
     std::vector<std::_List_iterator<Request>> whatPolicy(int policyNum, int timeDelta, Server *servers[], int server_count);
 
-    int wherePolicy(int policyNum, int timeDelta, Server *servers[], int server_count, Request requestToBeForwarded);
+    int wherePolicy(int policyNum, int timeDelta, Server *servers[], int server_count, Request requestToBeForwarded, std::map<std::string,int> &policies);
 
     void removeRequest(std::_List_iterator<Request> requestIter);
 
