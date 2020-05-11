@@ -1,0 +1,4 @@
+lambda,server_count,alpha,respSize,time,interval,granularity,distribution,proactiveRequests,what_policy,when_policy,where_policy,statCollectionTime,k_value
+350,5,[20000],[100:400],20000,10,4096,p,1500,0,1,2,0,2
+350,5,[20000],[100:400],20000,10,4096,p,1500,0,1,2,0,3
+350,5,[20000],[100:400],20000,10,4096,p,1500,0,1,5,0,3
