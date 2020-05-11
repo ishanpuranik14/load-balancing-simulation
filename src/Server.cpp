@@ -325,6 +325,19 @@ int Server::wherePolicy(int policyNum, int timeDelta, Server **servers, int serv
             }
             break;
         }
+        case 5: {
+            int randomly_selected_server = rand() % server_count;
+            // Regenerate if redundant
+            while (randomly_selected_server == server_no) {
+                randomly_selected_server = rand() % server_count;
+            }
+            load = (*servers[randomly_selected_server]).getServerLoad();
+            spdlog::trace("\t\t\t\tRandom, Comparing the load of server #{}, load: {}", randomly_selected_server, load);
+            if (load < getServerLoad()) {
+                send_to = randomly_selected_server;
+            }
+            break;
+        }
         default:
             break;
     }
